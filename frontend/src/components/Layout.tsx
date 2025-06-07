@@ -13,7 +13,7 @@ const Layout = ({ children }: LayoutProps) => {
     <Box display="flex" flexDirection="column" minHeight="100vh">
       <Header />
       <Box component="main" flex="1" py={4}>
-        <Container>
+        <Container maxWidth="xl">
           {children}
         </Container>
       </Box>

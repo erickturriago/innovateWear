@@ -5,7 +5,7 @@ const Footer = () => {
   return (
     <Box component="footer" sx={{ p: 2, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
       <Typography variant="body2" color="text.secondary">
-        &copy; {new Date().getFullYear()} My T-Shirt Shop. All rights reserved.
+        &copy; {new Date().getFullYear()} InnovateWear. All rights reserved.
       </Typography>
     </Box>
   );
