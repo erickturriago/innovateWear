@@ -1,23 +1,38 @@
-# Use an official Node.js runtime as a parent image
-FROM node:22-alpine
+# ---- Etapa 1: Construcción (Builder) ----
+# Usamos una imagen oficial de Node.js como base.
+# 'alpine' es una versión ligera de Linux, ideal para mantener las imágenes pequeñas.
+FROM node:20-alpine AS builder
 
-# Set the working directory in the container
-WORKDIR /usr/src/app
+# Establecemos el directorio de trabajo dentro del contenedor
+WORKDIR /app
 
-# Copy package.json and package-lock.json to the container
+# Copiamos package.json y package-lock.json (o yarn.lock)
+# Esto aprovecha el caché de Docker. Si no cambian, no se reinstalan las dependencias.
 COPY package*.json ./
 
-# Install dependencies
+# Instalamos las dependencias del proyecto
 RUN npm install
 
-# Copy the rest of the application source code to the container
+# Copiamos el resto del código fuente de la aplicación
 COPY . .
 
-# Expose port 3000 to the outside world
-EXPOSE 3000
+# Creamos la build de producción. Vite pondrá los archivos en la carpeta /dist
+RUN npm run build
 
-# Define environment variable
-ENV NODE_ENV=production
+# ---- Etapa 2: Producción (Server) ----
+# Usamos una imagen oficial de Nginx, que es un servidor web muy ligero y eficiente.
+FROM nginx:stable-alpine
 
-# Command to run the application
-CMD ["node", "app.js"]
+# Copiamos los archivos estáticos generados en la etapa anterior 
+# desde la carpeta /app/dist del 'builder' al directorio por defecto de Nginx.
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copiamos nuestro archivo de configuración personalizado de Nginx.
+# Esto es crucial para que el enrutamiento de React funcione correctamente.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Exponemos el puerto 80, que es el puerto por defecto de Nginx.
+EXPOSE 80
+
+# Comando para iniciar Nginx cuando el contenedor se ejecute.
+CMD ["nginx", "-g", "daemon off;"]
