@@ -40,7 +40,7 @@ const CustomizePage = () => {
   const [selectedPrint, setSelectedPrint] = useState<Print | null>(null);
   
   const [builder] = useState(() => new CustomTshirtBuilder());
-  const addProductToCart = useCartStore(state => state.addProduct);
+  const addProductToCart = useCartStore((state: { addProduct: any; }) => state.addProduct);
 
   const totalPrice = useMemo(() => {
     const garmentPrice = selectedGarment.price;
