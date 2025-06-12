@@ -10,7 +10,7 @@ class ApiClient {
     if (!ApiClient.instance) {
       console.log("Creando instancia ÚNICA de ApiClient (Singleton)");
       ApiClient.instance = axios.create({
-        baseURL: 'http://localhost:3001/api',
+        baseURL: 'http://localhost:8080/api',
         headers: {
           'Content-Type': 'application/json',
         },

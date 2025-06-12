@@ -1,7 +1,10 @@
 // src/patterns/builder/CustomTshirtBuilder.ts
+
 import type { Print } from '../../models/Print';
 import type { TShirtSize, CustomCartItem } from '../../models/CartItem';
 import type { BaseGarment } from '../../models/Garment';
+// --- 1. IMPORTAMOS NUESTROS DECORADORES ---
+import { BaseGarmentPrice, PrintPriceDecorator, type PricedItem } from '../decorator/PriceDecorator';
 
 // Esta clase irá guardando cada pieza de la personalización
 export class CustomTshirtBuilder {
@@ -56,8 +59,23 @@ export class CustomTshirtBuilder {
 
     const customId = `${this.garment.id}-${this.color}-${this.print.id}-${this.size}`;
     
-    // TODO: Implementar Patrón Decorator para el precio
-    const finalPrice = this.garment.price + 15000; // Precio base + costo de la estampa (ejemplo)
+    // --- 2. USAMOS EL PATRÓN DECORATOR PARA CALCULAR EL PRECIO ---
+    // a. Empezamos con el objeto base (la prenda)
+    let pricedItem: PricedItem = new BaseGarmentPrice(this.garment);
+
+    // b. Si hay una estampa, la "decoramos" con su costo
+    if (this.print) {
+      pricedItem = new PrintPriceDecorator(pricedItem, this.print);
+    }
+    
+    // c. ¡Y listo! Obtenemos el precio final. Si tuviéramos más decoradores,
+    //    se podrían anidar aquí.
+    const finalPrice = pricedItem.getPrice();
+    
+    // Opcional: podríamos usar la descripción para el item del carrito.
+    const description = pricedItem.getDescription();
+    console.log(`Descripción del item: ${description}`);
+    // -----------------------------------------------------------------
 
     const item: CustomCartItem = {
       id: customId,
@@ -69,7 +87,7 @@ export class CustomTshirtBuilder {
       print: this.print,
       size: this.size,
       quantity: this.quantity,
-      price: finalPrice,
+      price: finalPrice, // <- Usamos el precio calculado por el decorador
     };
     
     console.log('Builder: ¡Producto construido!', item);

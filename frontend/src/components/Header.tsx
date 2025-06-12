@@ -1,15 +1,15 @@
 // src/components/Header.tsx
 import { useState } from 'react';
-import { AppBar, Toolbar, IconButton, Typography, Box, Button, Drawer, List, ListItem, ListItemButton, ListItemText, Badge } from '@mui/material';
+import { AppBar, Toolbar, IconButton, Typography, Box, Button, Drawer, List, ListItem, ListItemButton, ListItemText, Badge, CircularProgress, Stack, Link } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { ThemeProvider, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 import SearchIcon from '@mui/icons-material/Search';
-import AccountCircle from '@mui/icons-material/AccountCircle';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import headerTheme from '../theme/headerTheme';
-import { useCartStore } from '../store/cartStore'; // <-- 1. IMPORTAMOS EL STORE
+import { useCartStore } from '../store/cartStore';
+import { useAuth } from '../auth/useAuth';
 
 const Header = () => {
   const location = useLocation();
@@ -17,10 +17,10 @@ const Header = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // --- 2. NOS SUSCRIBIMOS AL ESTADO DEL CARRITO ---
   const cartItems = useCartStore(state => state.items);
-  // Calculamos la cantidad total de artículos sumando las cantidades de cada item
   const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
+
+  const { user, login, logout, isLoading } = useAuth();
   
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -53,7 +53,7 @@ const Header = () => {
       <AppBar position="static" color="primary" elevation={1}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           {isMobile && (
-            <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle}>
+            <IconButton aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ color: '#424242' }}>
               <MenuIcon />
             </IconButton>
           )}
@@ -69,11 +69,34 @@ const Header = () => {
               ))}
             </Box>
           )}
-          <Box>
-            <IconButton color="inherit"><SearchIcon /></IconButton>
-            <IconButton color="inherit"><AccountCircle /></IconButton>
-            {/* --- 3. ENVOLVEMOS EL ÍCONO DEL CARRITO CON EL BADGE --- */}
-            <IconButton color="inherit" component={RouterLink} to="/checkout">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* --- AJUSTE: Añadido 'sx' para forzar el color --- */}
+            <IconButton sx={{ color: '#424242' }}><SearchIcon /></IconButton>
+            
+            {isLoading ? (
+              <CircularProgress size={24} />
+            ) : user ? (
+              <>
+                <Link component={RouterLink} to={user.getDashboardPath()} underline="hover" sx={{ color: 'text.primary' }}>
+                   Hola, {user.name.split(' ')[0]}
+                </Link>
+                <Button variant="outlined" size="small" onClick={logout} sx={{ ml: 1 }}>
+                  Salir
+                </Button>
+              </>
+            ) : (
+              <Stack direction="row" spacing={1}>
+                <Button variant="contained" size="small" onClick={() => login('ana@cliente.com', '456')}>
+                  Login Cliente
+                </Button>
+                 <Button variant="contained" size="small" color="secondary" onClick={() => login('carlos@artista.com', '123')}>
+                  Login Artista
+                </Button>
+              </Stack>
+            )}
+            
+            {/* --- AJUSTE: Añadido 'sx' para forzar el color --- */}
+            <IconButton component={RouterLink} to="/checkout" sx={{ color: '#424242' }}>
               <Badge badgeContent={totalItems} color="error">
                 <ShoppingCartIcon />
               </Badge>

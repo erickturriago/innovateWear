@@ -7,7 +7,7 @@ import PrintCard from '../components/PrintCard';
 import ViewMoreCard from '../components/ViewMoreCard';
 import HorizontalProductScroller from '../components/HorizontalProductScroller'; // <-- IMPORTAMOS EL NUEVO COMPONENTE
 import tshirtApi from '../api/tshirtApi';
-import printApi from '../api/printApi';
+import printApi from '../api/designApi';
 import type { TShirt } from '../models/TShirt';
 import type { Print } from '../models/Print';
 

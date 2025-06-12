@@ -9,7 +9,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import * as fabric from 'fabric';
 
-import printApi from '../api/printApi';
+import printApi from '../api/designApi';
 import { useCartStore } from '../store/cartStore';
 import { CustomTshirtBuilder } from '../patterns/builder/CustomTshirtBuilder';
 import { availableGarments } from '../data/mockData';

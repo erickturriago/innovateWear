@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Alert, Skeleton, Paper, TextField, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import PrintCard from '../components/PrintCard';
-import printApi from '../api/printApi';
+import printApi from '../api/designApi';
 import type { Print } from '../models/Print';
 
 const PrintsPage = () => {
