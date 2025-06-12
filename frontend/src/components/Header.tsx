@@ -1,6 +1,6 @@
 // src/components/Header.tsx
 import { useState } from 'react';
-import { AppBar, Toolbar, IconButton, Typography, Box, Button, Drawer, List, ListItem, ListItemButton, ListItemText, Badge, CircularProgress, Stack, Link } from '@mui/material';
+import { AppBar, Toolbar, IconButton, Typography, Box, Button, Drawer, List, ListItem, ListItemButton, ListItemText, Badge, CircularProgress, Link } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { ThemeProvider, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -10,6 +10,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import headerTheme from '../theme/headerTheme';
 import { useCartStore } from '../store/cartStore';
 import { useAuth } from '../auth/useAuth';
+import { FirebaseFacade } from '../patterns/facade/FirebaseFacade';
 
 const Header = () => {
   const location = useLocation();
@@ -20,10 +21,14 @@ const Header = () => {
   const cartItems = useCartStore(state => state.items);
   const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
 
-  const { user, login, logout, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+  
+  const handleLogout = () => {
+    FirebaseFacade.signOut();
   };
 
   const navItems = [
@@ -60,6 +65,7 @@ const Header = () => {
           <Typography variant="h6" color="text.primary" sx={{ flexGrow: { xs: 1, md: 0 } }}>
             InnovateWear
           </Typography>
+          
           {!isMobile && (
             <Box sx={{ display: 'flex', gap: 2, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
               {navItems.map((item) => (
@@ -69,8 +75,8 @@ const Header = () => {
               ))}
             </Box>
           )}
+          
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* --- AJUSTE: Añadido 'sx' para forzar el color --- */}
             <IconButton sx={{ color: '#424242' }}><SearchIcon /></IconButton>
             
             {isLoading ? (
@@ -80,22 +86,17 @@ const Header = () => {
                 <Link component={RouterLink} to={user.getDashboardPath()} underline="hover" sx={{ color: 'text.primary' }}>
                    Hola, {user.name.split(' ')[0]}
                 </Link>
-                <Button variant="outlined" size="small" onClick={logout} sx={{ ml: 1 }}>
+                <Button variant="outlined" size="small" onClick={handleLogout} sx={{ ml: 1 }}>
                   Salir
                 </Button>
               </>
             ) : (
-              <Stack direction="row" spacing={1}>
-                <Button variant="contained" size="small" onClick={() => login('ana@cliente.com', '456')}>
-                  Login Cliente
-                </Button>
-                 <Button variant="contained" size="small" color="secondary" onClick={() => login('carlos@artista.com', '123')}>
-                  Login Artista
-                </Button>
-              </Stack>
+              // --- BOTÓN DE LOGIN ÚNICO Y REAL ---
+              <Button component={RouterLink} to="/login" variant="contained" size="small">
+                Login
+              </Button>
             )}
             
-            {/* --- AJUSTE: Añadido 'sx' para forzar el color --- */}
             <IconButton component={RouterLink} to="/checkout" sx={{ color: '#424242' }}>
               <Badge badgeContent={totalItems} color="error">
                 <ShoppingCartIcon />
@@ -104,9 +105,17 @@ const Header = () => {
           </Box>
         </Toolbar>
       </AppBar>
+      
       <nav>
-        <Drawer variant="temporary" open={mobileOpen} onClose={handleDrawerToggle} ModalProps={{ keepMounted: true }}
-          sx={{ display: { xs: 'block', md: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 } }}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 },
+          }}
         >
           {drawer}
         </Drawer>

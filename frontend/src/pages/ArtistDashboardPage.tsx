@@ -1,35 +1,32 @@
 // src/pages/ArtistDashboardPage.tsx
-import { useEffect } from 'react';
-import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material'; // Grid ya no se importa
+import { useEffect, useState } from 'react';
+import { Box, Typography, Paper, Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import PrintCard from '../components/PrintCard';
 import { CreateDesignCommand } from '../patterns/command/Command';
 import { useAuth } from '../auth/useAuth';
 import { useDesignStore } from '../store/designStore';
+import { CreateDesignForm } from '../components/forms/CreateDesignForm';
+import categoryApi, { type DesignCategory } from '../api/categoryApi';
 
 const ArtistDashboardPage = () => {
   const { user } = useAuth();
   const { designs, isLoading, fetchDesignsByArtist, addDesign } = useDesignStore();
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [categories, setCategories] = useState<DesignCategory[]>([]);
+
   useEffect(() => {
     if (user) {
       fetchDesignsByArtist(user.id);
     }
+    categoryApi.getAll().then(setCategories);
   }, [user, fetchDesignsByArtist]);
 
-  const handleCreateNewDesign = async () => {
+  const handleFormSubmit = async (formData: any) => {
     if (!user) return;
-
-    const designData = {
-      name: `Diseño Aleatorio #${Math.floor(Math.random() * 1000)}`,
-      description: 'Creado con Patrón Command y Observer',
-      price: 25.50,
-      imageUrl: `https://placehold.co/400x400/2A4D8C/FFFFFF/png?text=Diseño`,
-      categoryId: 1,
-      artistId: user.id,
-    };
-
-    const command = new CreateDesignCommand(designData, addDesign);
+    
+    const command = new CreateDesignCommand({ ...formData, artistId: user.id }, addDesign);
     const newDesign = await command.execute();
 
     if (newDesign) {
@@ -37,6 +34,7 @@ const ArtistDashboardPage = () => {
     } else {
       alert('Hubo un error al crear el diseño.');
     }
+    setIsModalOpen(false); // Cierra el modal
   };
 
   return (
@@ -45,36 +43,31 @@ const ArtistDashboardPage = () => {
         <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>
           Mis Diseños
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateNewDesign}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setIsModalOpen(true)}>
           Subir Nueva Estampa
         </Button>
       </Box>
+
+      {/* Modal para crear diseño */}
+      <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Subir Nueva Estampa</DialogTitle>
+        <DialogContent>
+          <CreateDesignForm
+            categories={categories}
+            onSubmit={handleFormSubmit}
+            onCancel={() => setIsModalOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
       <Paper elevation={3} sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>Listado de Estampas ({designs.length})</Typography>
         {isLoading ? (
           <CircularProgress />
         ) : (
-          // --- REEMPLAZO DE GRID POR BOX CON FLEXBOX ---
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 3, // Espacio entre los elementos
-            }}
-          >
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
             {designs.map((design) => (
-              <Box
-                key={design.id}
-                sx={{
-                  // Definimos el ancho para cada tamaño de pantalla
-                  width: {
-                    xs: '100%', // 1 columna en extra-small
-                    sm: 'calc(50% - 12px)', // 2 columnas en small
-                    md: 'calc(33.33% - 16px)', // 3 columnas en medium
-                    lg: 'calc(25% - 18px)', // 4 columnas en large
-                  },
-                }}
-              >
+              <Box key={design.id} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.33% - 16px)', lg: 'calc(25% - 18px)' }}}>
                 <PrintCard {...design} />
               </Box>
             ))}

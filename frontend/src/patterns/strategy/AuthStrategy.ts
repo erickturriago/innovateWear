@@ -25,7 +25,7 @@ export class EmailPasswordAuthStrategy implements AuthStrategy {
   }
 }
 
-// Podríamos añadir una estrategia de registro si fuera necesario
+// Estrategia de registro
 export class EmailPasswordSignUpStrategy implements AuthStrategy {
     public async execute(email: string, pass: string): Promise<boolean> {
         console.log("Ejecutando estrategia de Registro con Email/Password...");
