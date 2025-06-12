@@ -1,85 +1,92 @@
-import { Box, Typography, Grid, Button } from '@mui/material';
+// src/pages/Home.tsx
+import { useState, useEffect } from 'react';
+import { Box, Alert, Skeleton } from '@mui/material'; // Ya no necesitamos Typography aquí
+import HeroCarousel from '../components/HeroCarousel';
 import ProductCard from '../components/ProductCard';
-import { useNavigate } from 'react-router-dom';
-
-
-const camisetasPopulares = [
-  {
-    id: '1',
-    image: 'https://via.placeholder.com/300x140?text=Camiseta+1',
-    title: 'Camiseta Retro',
-    description: 'Diseño vintage muy popular.',
-  },
-  {
-    id: '2',
-    image: 'https://via.placeholder.com/300x140?text=Camiseta+2',
-    title: 'Camiseta Minimalista',
-    description: 'Estilo simple y elegante.',
-  },
-];
-
-const estampasPopulares = [
-  {
-    id: '1',
-    image: 'https://via.placeholder.com/300x140?text=Estampa+1',
-    title: 'Estampa Floral',
-    description: 'Flores coloridas y llamativas.',
-  },
-  {
-    id: '2',
-    image: 'https://via.placeholder.com/300x140?text=Estampa+2',
-    title: 'Estampa Geométrica',
-    description: 'Formas abstractas y modernas.',
-  },
-];
+import PrintCard from '../components/PrintCard';
+import ViewMoreCard from '../components/ViewMoreCard';
+import HorizontalProductScroller from '../components/HorizontalProductScroller'; // <-- IMPORTAMOS EL NUEVO COMPONENTE
+import tshirtApi from '../api/tshirtApi';
+import printApi from '../api/designApi';
+import type { TShirt } from '../models/TShirt';
+import type { Print } from '../models/Print';
 
 const Home = () => {
-  const navigate = useNavigate();
+  const [tshirts, setTshirts] = useState<TShirt[]>([]);
+  const [prints, setPrints] = useState<Print[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [tshirtsData, printsData] = await Promise.all([
+          tshirtApi.getAll(),
+          printApi.getAll(),
+        ]);
+        setTshirts(tshirtsData);
+        setPrints(printsData);
+      } catch (err) {
+        setError('Error al cargar los productos. Por favor, intenta de nuevo.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  // El esqueleto ahora es para una fila, no una cuadrícula
+  const renderSkeletons = (count = 4) => (
+    <Box display="flex" gap={3}>
+      {Array.from(new Array(count)).map((_, index) => (
+        <Box key={index} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+          <Skeleton variant="rectangular" sx={{ borderRadius: 3, height: 320 }} />
+          <Skeleton />
+          <Skeleton width="60%" />
+        </Box>
+      ))}
+    </Box>
+  );
 
   return (
-    <Box sx={{ p: 4 }}>
-      {/* Sección Camisetas Populares */}
-      <Typography variant="h5" gutterBottom>
-        Camisetas Populares
-      </Typography>
-      <Grid container spacing={2} mb={2}>
-        {camisetasPopulares.map((camiseta) => (
-          <Grid item key={camiseta.id} xs={12} sm={6} md={4}>
-            <ProductCard
-              id={camiseta.id}
-              image={camiseta.image}
-              title={camiseta.title}
-              description={camiseta.description}
-              link="/tshirts"
-            />
-          </Grid>
-        ))}
-      </Grid>
-      <Button variant="contained" onClick={() => navigate('/tshirts')}>
-        Ver más camisetas
-      </Button>
+    <Box>
+      <HeroCarousel />
+      <Box sx={{ px: { xs: 2, sm: 4, md: 6 }, py: 4 }}>
+        {error && <Alert severity="error" sx={{ mb: 4 }}>{error}</Alert>}
+        
+        {loading ? (
+          <>
+            <Box mb={6}>{renderSkeletons()}</Box>
+            <Box mb={6}>{renderSkeletons()}</Box>
+          </>
+        ) : (
+          <>
+            {/* Sección de Camisetas con el Scroller */}
+            <HorizontalProductScroller title="Camisetas populares">
+              {tshirts.map((camiseta) => (
+                <Box key={camiseta.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                  <ProductCard {...camiseta} />
+                </Box>
+              ))}
+              <Box sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                <ViewMoreCard text="Camisetas" link="/tshirts" />
+              </Box>
+            </HorizontalProductScroller>
 
-      {/* Sección Estampas Populares */}
-      <Box mt={6}>
-        <Typography variant="h5" gutterBottom>
-          Estampas Populares
-        </Typography>
-        <Grid container spacing={2} mb={2}>
-          {estampasPopulares.map((estampa) => (
-            <Grid item key={estampa.id} xs={12} sm={6} md={4}>
-              <ProductCard
-                id={estampa.id}
-                image={estampa.image}
-                title={estampa.title}
-                description={estampa.description}
-                link="/prints"
-              />
-            </Grid>
-          ))}
-        </Grid>
-        <Button variant="contained" onClick={() => navigate('/prints')}>
-          Ver más estampas
-        </Button>
+            {/* Sección de Estampas con el Scroller */}
+            <HorizontalProductScroller title="Estampas populares">
+              {prints.map((estampa) => (
+                <Box key={estampa.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                  <PrintCard {...estampa} />
+                </Box>
+              ))}
+              <Box sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                <ViewMoreCard text="Estampados" link="/prints" />
+              </Box>
+            </HorizontalProductScroller>
+          </>
+        )}
       </Box>
     </Box>
   );

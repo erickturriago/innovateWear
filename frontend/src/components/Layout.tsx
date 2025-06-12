@@ -1,4 +1,4 @@
-// src/components/Layout.tsx
+// src/components/layout/Layout.tsx
 import { Container, Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
@@ -13,7 +13,7 @@ const Layout = ({ children }: LayoutProps) => {
     <Box display="flex" flexDirection="column" minHeight="100vh">
       <Header />
       <Box component="main" flex="1" py={4}>
-        <Container>
+        <Container maxWidth="xl">
           {children}
         </Container>
       </Box>

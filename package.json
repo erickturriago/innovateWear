@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "fabric": "^6.7.0",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@types/fabric": "^5.3.10"
+  }
+}
