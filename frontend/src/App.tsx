@@ -1,13 +1,12 @@
 // src/App.tsx
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
-import Home from './pages/Home';
+import Layout from './components/Layout'; // Ajustar ruta
+import Home from './pages/Home'; // Renombrado para consistencia
 import TShirtsPage from './pages/TShirtsPage';
 import PrintsPage from './pages/PrintsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
-import Catalog from './pages/Catalog';
 import CustomizePage from './pages/CustomizePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -45,9 +44,12 @@ function App() {
         <Route path="/prints" element={<Layout><PrintsPage /></Layout>} />
         <Route path="/customize" element={<Layout><CustomizePage /></Layout>} />
         <Route path="/checkout" element={<Layout><CartPage /></Layout>} />
-        <Route path="/catalog" element={<Layout><Catalog /></Layout>} />
+        
         <Route path="/artist/dashboard" element={<Layout><RoleProxy requiredRole="ARTISTA"><ArtistDashboardPage /></RoleProxy></Layout>} />
         <Route path="/admin/dashboard" element={<Layout><RoleProxy requiredRole="ADMIN"><AdminDashboardPage /></RoleProxy></Layout>} />
+        
+        {/* Ruta de fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

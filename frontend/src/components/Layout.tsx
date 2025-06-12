@@ -1,4 +1,4 @@
-// src/components/Layout.tsx
+// src/components/layout/Layout.tsx
 import { Container, Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';

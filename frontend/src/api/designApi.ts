@@ -34,7 +34,6 @@ const designApi = {
     }
   },
   
-  // --- MÉTODO NUEVO ---
   getByArtistId: async (artistId: number): Promise<Print[]> => {
     try {
       const response = await httpClient.get(`/designs/artist/${artistId}`);
@@ -60,6 +59,36 @@ const designApi = {
     } catch (error) {
       console.error('Error creating design:', error);
       return null;
+    }
+  },
+  
+  update: async (id: string, data: Partial<NewDesignData>): Promise<Print | null> => {
+    try {
+      const response = await httpClient.put(`/designs/${id}`, data);
+      return mapApiToPrint(response.data);
+    } catch (error) {
+      console.error(`Error updating design ${id}:`, error);
+      return null;
+    }
+  },
+
+  deleteById: async (id: string): Promise<boolean> => {
+    try {
+      await httpClient.delete(`/designs/${id}`);
+      return true;
+    } catch (error) {
+      console.error(`Error deleting design ${id}:`, error);
+      return false;
+    }
+  },
+  
+  deletePermanently: async (id: string): Promise<boolean> => {
+    try {
+      await httpClient.delete(`/designs/${id}/permanent`);
+      return true;
+    } catch (error) {
+      console.error(`Error permanently deleting design ${id}:`, error);
+      return false;
     }
   },
 };

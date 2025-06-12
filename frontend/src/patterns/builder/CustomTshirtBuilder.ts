@@ -1,81 +1,61 @@
 // src/patterns/builder/CustomTshirtBuilder.ts
-
 import type { Print } from '../../models/Print';
 import type { TShirtSize, CustomCartItem } from '../../models/CartItem';
 import type { BaseGarment } from '../../models/Garment';
-// --- 1. IMPORTAMOS NUESTROS DECORADORES ---
 import { BaseGarmentPrice, PrintPriceDecorator, type PricedItem } from '../decorator/PriceDecorator';
 
-// Esta clase irá guardando cada pieza de la personalización
 export class CustomTshirtBuilder {
   private garment?: BaseGarment;
   private color: string = '#FFFFFF';
   private size?: TShirtSize;
-  private print?: Print;
+  private prints: Print[] = []; // <-- Ahora es un array
   private quantity: number = 1;
 
-  // Cada método "set" actualiza una parte y devuelve "this" para poder encadenar llamadas
   public setGarment(garment: BaseGarment): this {
     this.garment = garment;
-    console.log('Builder: Prenda seleccionada ->', garment.name);
     return this;
   }
 
   public setColor(color: string): this {
     this.color = color;
-    console.log('Builder: Color seleccionado ->', color);
     return this;
   }
   
   public setSize(size: TShirtSize): this {
     this.size = size;
-    console.log('Builder: Talla seleccionada ->', size);
     return this;
   }
   
   public setQuantity(quantity: number): this {
     this.quantity = quantity > 0 ? quantity : 1;
-    console.log('Builder: Cantidad seleccionada ->', this.quantity);
     return this;
   }
   
-  public setPrint(print: Print): this {
-    this.print = print;
-    console.log('Builder: Estampa seleccionada ->', print.title);
+  public addPrint(print: Print): this {
+    this.prints.push(print);
+    console.log('Builder: Estampa añadida ->', print.title);
     return this;
   }
 
-  // El método final que construye el objeto para el carrito
+  public removePrint(printId: string): this {
+    this.prints = this.prints.filter(p => p.id !== printId);
+    return this;
+  }
+
   public build(): CustomCartItem | null {
-    if (!this.garment || !this.size || !this.print) {
-      alert("Por favor, selecciona una prenda, talla y estampa para continuar.");
-      console.error("Faltan detalles para construir la camiseta.", {
-        garment: this.garment,
-        size: this.size,
-        print: this.print,
-      });
+    if (!this.garment || !this.size || this.prints.length === 0) {
+      alert("Por favor, selecciona una prenda, talla y al menos una estampa.");
       return null;
     }
 
-    const customId = `${this.garment.id}-${this.color}-${this.print.id}-${this.size}`;
+    const printIds = this.prints.map(p => p.id).join('-');
+    const customId = `${this.garment.id}-${this.color}-${printIds}-${this.size}`;
     
-    // --- 2. USAMOS EL PATRÓN DECORATOR PARA CALCULAR EL PRECIO ---
-    // a. Empezamos con el objeto base (la prenda)
     let pricedItem: PricedItem = new BaseGarmentPrice(this.garment);
-
-    // b. Si hay una estampa, la "decoramos" con su costo
-    if (this.print) {
-      pricedItem = new PrintPriceDecorator(pricedItem, this.print);
+    for (const print of this.prints) {
+      pricedItem = new PrintPriceDecorator(pricedItem, print);
     }
-    
-    // c. ¡Y listo! Obtenemos el precio final. Si tuviéramos más decoradores,
-    //    se podrían anidar aquí.
     const finalPrice = pricedItem.getPrice();
-    
-    // Opcional: podríamos usar la descripción para el item del carrito.
-    const description = pricedItem.getDescription();
-    console.log(`Descripción del item: ${description}`);
-    // -----------------------------------------------------------------
 
     const item: CustomCartItem = {
       id: customId,
@@ -84,13 +64,13 @@ export class CustomTshirtBuilder {
         name: this.garment.name,
         color: this.color,
       },
-      print: this.print,
+      prints: this.prints,
       size: this.size,
       quantity: this.quantity,
-      price: finalPrice, // <- Usamos el precio calculado por el decorador
+      price: finalPrice,
     };
     
-    console.log('Builder: ¡Producto construido!', item);
+    console.log('Builder: ¡Producto construido con múltiples estampas!', item);
     return item;
   }
 }

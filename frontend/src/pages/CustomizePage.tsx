@@ -1,3 +1,4 @@
+// src/pages/CustomizePage.tsx
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,19 +10,13 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import * as fabric from 'fabric';
 
-import printApi from '../api/designApi';
+import designApi from '../api/designApi';
 import { useCartStore } from '../store/cartStore';
 import { CustomTshirtBuilder } from '../patterns/builder/CustomTshirtBuilder';
 import { availableGarments } from '../data/mockData';
 import type { Print } from '../models/Print';
 import type { BaseGarment, ColorOption } from '../models/Garment';
 import type { TShirtSize } from '../models/CartItem';
-
-const availableColors = [
-  { name: 'Blanco', value: '#FFFFFF' }, { name: 'Negro', value: '#222222' },
-  { name: 'Gris', value: '#888888' }, { name: 'Rojo', value: '#B71C1C' },
-  { name: 'Azul', value: '#0D47A1' }, { name: 'Verde', value: '#1B5E20' },
-];
 
 const CustomizePage = () => {
   const navigate = useNavigate();
@@ -37,17 +32,19 @@ const CustomizePage = () => {
   const [selectedColor, setSelectedColor] = useState<ColorOption>(availableGarments[0].colors[0]);
   const [selectedSize, setSelectedSize] = useState<TShirtSize>('M');
   const [quantity, setQuantity] = useState(1);
-  const [selectedPrint, setSelectedPrint] = useState<Print | null>(null);
+  
+  // AJUSTE: El estado ahora es un array
+  const [selectedPrints, setSelectedPrints] = useState<Print[]>([]);
   
   const [builder] = useState(() => new CustomTshirtBuilder());
-  const addProductToCart = useCartStore((state: { addProduct: any; }) => state.addProduct);
+  const addProductToCart = useCartStore((state) => state.addProduct);
 
   const totalPrice = useMemo(() => {
-    const garmentPrice = selectedGarment.price;
-    const printPrice = selectedPrint ? 15000 : 0;
-    return (garmentPrice + printPrice) * quantity;
-  }, [selectedGarment, selectedPrint, quantity]);
-
+    let price = selectedGarment.price;
+    // Asumimos un costo fijo por estampa para la UI, el cálculo real lo hace el builder
+    price += selectedPrints.length * 15000; 
+    return price * quantity;
+  }, [selectedGarment, selectedPrints, quantity]);
 
   const handleColorChange = useCallback((color: string) => {
     const tShirtImg = tShirtImageRef.current;
@@ -83,16 +80,12 @@ const CustomizePage = () => {
         });
         tShirtImageRef.current = img;
         canvas.add(img);
-        
-        // FORZAMOS A TYPESCRIPT A ACEPTAR EL MÉTODO
         (canvas as any).moveTo(img, 0);
-
         handleColorChange(selectedColor.value);
         canvas.requestRenderAll();
     });
   }, [handleColorChange, selectedColor.value]);
   
-  // Efecto principal de inicialización y cambios
   useEffect(() => {
     if (!fabricCanvasRef.current) {
       const canvas = new fabric.Canvas(canvasRef.current!, {
@@ -101,7 +94,7 @@ const CustomizePage = () => {
       });
       fabricCanvasRef.current = canvas;
       
-      printApi.getAll().then(setPrints).catch(console.error).finally(() => setLoadingPrints(false));
+      designApi.getAll().then(setPrints).catch(console.error).finally(() => setLoadingPrints(false));
     }
     
     const canvas = fabricCanvasRef.current;
@@ -115,7 +108,7 @@ const CustomizePage = () => {
       const newGarment = availableGarments.find(g => g.name === newGarmentName);
       if (newGarment && newGarment.id !== selectedGarment.id) {
         setSelectedGarment(newGarment);
-        setSelectedColor(newGarment.colors[0]); // Reset al primer color de la nueva prenda
+        setSelectedColor(newGarment.colors[0]);
       }
     }
   };
@@ -123,19 +116,13 @@ const CustomizePage = () => {
   const handleAddPrint = (print: Print) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
-    setSelectedPrint(print);
-    builder.setPrint(print);
-    
-    canvas.getObjects().forEach(obj => {
-      if (obj !== tShirtImageRef.current) canvas.remove(obj);
-    });
+
+    setSelectedPrints(prev => [...prev, print]);
+    builder.addPrint(print);
 
     fabric.Image.fromURL(print.image, { crossOrigin: 'anonymous' }).then(img => {
       img.scaleToWidth(150);
-      
-      // FORZAMOS A TYPESCRIPT A ACEPTAR EL CENTRADO
       (canvas as any).centerObject(img);
-      
       canvas.add(img);
       canvas.setActiveObject(img);
       canvas.renderAll();
@@ -188,13 +175,15 @@ const CustomizePage = () => {
           </Paper>
 
           <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="h6" gutterBottom>3. Escoge tu diseño</Typography>
+            <Typography variant="h6" gutterBottom>3. Escoge tus diseños</Typography>
             {loadingPrints ? <Skeleton variant="rectangular" height={80} /> : (
               <Box display="grid" gap={2} gridTemplateColumns="repeat(auto-fill, minmax(80px, 1fr))">
                 {prints.map(print => (
-                  <Paper key={print.id} onClick={() => handleAddPrint(print)} elevation={0} sx={{ border: '1px solid', borderColor: selectedPrint?.id === print.id ? 'primary.main' : '#ddd', cursor: 'pointer', aspectRatio: '1 / 1', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
-                    <img src={print.image} alt={print.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}/>
-                  </Paper>
+                  <Tooltip key={print.id} title={`Añadir "${print.title}"`}>
+                    <Paper onClick={() => handleAddPrint(print)} elevation={0} sx={{ border: '1px solid #ddd', cursor: 'pointer', aspectRatio: '1 / 1', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
+                      <img src={print.image} alt={print.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}/>
+                    </Paper>
+                  </Tooltip>
                 ))}
               </Box>
             )}

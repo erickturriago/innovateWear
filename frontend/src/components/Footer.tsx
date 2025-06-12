@@ -1,4 +1,4 @@
-// src/components/Footer.tsx
+// src/components/layout/Footer.tsx
 import { Box, Typography } from '@mui/material';
 
 const Footer = () => {

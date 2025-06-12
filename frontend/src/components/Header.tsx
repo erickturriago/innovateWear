@@ -1,4 +1,4 @@
-// src/components/Header.tsx
+// src/components/layout/Header.tsx
 import { useState } from 'react';
 import { AppBar, Toolbar, IconButton, Typography, Box, Button, Drawer, List, ListItem, ListItemButton, ListItemText, Badge, CircularProgress, Link } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
@@ -91,7 +91,6 @@ const Header = () => {
                 </Button>
               </>
             ) : (
-              // --- BOTÓN DE LOGIN ÚNICO Y REAL ---
               <Button component={RouterLink} to="/login" variant="contained" size="small">
                 Login
               </Button>

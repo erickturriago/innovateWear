@@ -5,11 +5,6 @@ import type { User, UserRole } from '../models/User';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 const authService = {
-  /**
-   * Busca un usuario en nuestro backend por email.
-   * Si no existe, lo crea con el rol de 'CLIENTE'.
-   * Devuelve una instancia de la clase User de nuestra aplicación.
-   */
   findOrCreateUser: async (firebaseUser: FirebaseUser): Promise<User | null> => {
     if (!firebaseUser.email) return null;
 
