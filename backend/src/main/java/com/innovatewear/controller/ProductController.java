@@ -29,7 +29,14 @@ public class ProductController {
         return ResponseEntity.ok(products);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/all")
+    public ResponseEntity<List<Product>> getAllProductsIncludingInactive() {
+        LOGGER.info("Request para obtener todos los productos (incluyendo inactivos)");
+        List<Product> products = productService.getAllProducts();
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/detail/{id}")
     public ResponseEntity<Product> getProductById(@PathVariable Long id) {
         LOGGER.info("Request para obtener producto con ID: {}", id);
         return productService.getActiveProductById(id)
@@ -48,7 +55,7 @@ public class ProductController {
             LOGGER.info("Producto creado con ID: {}", createdProduct.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
         } catch (Exception e) {
-            LOGGER.error("Error al crear producto: " + e.getMessage(), e);
+            LOGGER.error("Error al crear producto: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
@@ -60,7 +67,7 @@ public class ProductController {
             Product updatedProduct = productService.updateProduct(id, productDetails);
             return ResponseEntity.ok(updatedProduct);
         } catch (Exception e) {
-            LOGGER.error("Error al actualizar producto con ID {}: " + e.getMessage(), id, e);
+            LOGGER.error("Error al actualizar producto con ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
@@ -72,7 +79,7 @@ public class ProductController {
             productService.deactivateProduct(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            LOGGER.error("Error al desactivar producto con ID {}: " + e.getMessage(), id, e);
+            LOGGER.error("Error al desactivar producto con ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }

@@ -29,7 +29,14 @@ public class DesignCategoryController {
         return ResponseEntity.ok(categories);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/all")
+    public ResponseEntity<List<DesignCategory>> getAllCategoriesIncludingInactive() {
+        LOGGER.info("Request para obtener todas las categorías de diseño (incluyendo inactivas)");
+        List<DesignCategory> categories = designCategoryService.getAllCategories();
+        return ResponseEntity.ok(categories);
+    }
+
+    @GetMapping("/detail/{id}")
     public ResponseEntity<DesignCategory> getCategoryById(@PathVariable Long id) {
         LOGGER.info("Request para obtener categoría de diseño con ID: {}", id);
         return designCategoryService.getActiveCategoryById(id)
@@ -48,7 +55,7 @@ public class DesignCategoryController {
             LOGGER.info("Categoría de diseño creada con ID: {}", createdCategory.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(createdCategory);
         } catch (Exception e) {
-            LOGGER.error("Error al crear categoría de diseño: " + e.getMessage(), e);
+            LOGGER.error("Error al crear categoría de diseño: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
@@ -60,7 +67,7 @@ public class DesignCategoryController {
             DesignCategory updatedCategory = designCategoryService.updateCategory(id, categoryDetails);
             return ResponseEntity.ok(updatedCategory);
         } catch (Exception e) {
-            LOGGER.error("Error al actualizar categoría de diseño con ID {}: " + e.getMessage(), id, e);
+            LOGGER.error("Error al actualizar categoría de diseño con ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
@@ -72,7 +79,7 @@ public class DesignCategoryController {
             designCategoryService.deactivateCategory(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            LOGGER.error("Error al desactivar categoría de diseño con ID {}: " + e.getMessage(), id, e);
+            LOGGER.error("Error al desactivar categoría de diseño con ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }

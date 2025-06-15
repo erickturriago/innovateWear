@@ -29,7 +29,14 @@ public class DesignController {
         return ResponseEntity.ok(designs);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/all")
+    public ResponseEntity<List<Design>> getAllDesignsIncludingInactive() {
+        LOGGER.info("Request para obtener todos los diseños (incluyendo inactivos)");
+        List<Design> designs = designService.getAllDesigns();
+        return ResponseEntity.ok(designs);
+    }
+
+    @GetMapping("/detail/{id}")
     public ResponseEntity<Design> getDesignById(@PathVariable Long id) {
         LOGGER.info("Request para obtener diseño con ID: {}", id);
         return designService.getActiveDesignById(id)
@@ -48,7 +55,7 @@ public class DesignController {
             LOGGER.info("Diseño creado con ID: {}", createdDesign.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(createdDesign);
         } catch (Exception e) {
-            LOGGER.error("Error al crear diseño: " + e.getMessage(), e);
+            LOGGER.error("Error al crear diseño: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
@@ -60,7 +67,7 @@ public class DesignController {
             Design updatedDesign = designService.updateDesign(id, designDetails);
             return ResponseEntity.ok(updatedDesign);
         } catch (Exception e) {
-            LOGGER.error("Error al actualizar diseño con ID {}: " + e.getMessage(), id, e);
+            LOGGER.error("Error al actualizar diseño con ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
@@ -72,7 +79,7 @@ public class DesignController {
             designService.deactivateDesign(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            LOGGER.error("Error al desactivar diseño con ID {}: " + e.getMessage(), id, e);
+            LOGGER.error("Error al desactivar diseño con ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }

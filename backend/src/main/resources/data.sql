@@ -8,6 +8,7 @@ TRUNCATE TABLE users, products, design_categories, designs, custom_designs, cust
 INSERT INTO users (id, name, email, password, role, active, created_at, updated_at) VALUES (1, 'Admin', 'admin@innovatewear.com', 'admin123', 'ADMIN', true, NOW(), NOW());
 INSERT INTO users (id, name, email, password, role, active, created_at, updated_at) VALUES (2, 'Carlos Artista', 'carlos@artista.com', 'artista123', 'ARTISTA', true, NOW(), NOW());
 INSERT INTO users (id, name, email, password, role, active, created_at, updated_at) VALUES (3, 'Ana Cliente', 'ana@cliente.com', 'cliente123', 'CLIENTE', true, NOW(), NOW());
+INSERT INTO users (id, name, email, password, role, active, created_at, updated_at) VALUES (4, 'Ana Cliente', 'leonardoturriagovargas@gmail.com', 'cliente123', 'CLIENTE', true, NOW(), NOW());
 
 -- =================================================================
 -- 2. PRODUCTOS (Camisetas Base)

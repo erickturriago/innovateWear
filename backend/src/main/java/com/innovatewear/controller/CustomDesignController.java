@@ -45,7 +45,7 @@ public class CustomDesignController {
             LOGGER.warn("Acceso denegado al actualizar CustomDesign con ID {}: {}", id, e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
-            LOGGER.error("Error al actualizar CustomDesign con ID {}: " + e.getMessage(), id, e);
+            LOGGER.error("Error al actualizar CustomDesign con ID {}: " + e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }
@@ -58,7 +58,7 @@ public class CustomDesignController {
             LOGGER.info("CustomDesign con ID {} desactivado correctamente", id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            LOGGER.error("Error al desactivar CustomDesign con ID {} por artista {}: " + e.getMessage(), id, artistId, e);
+            LOGGER.error("Error al desactivar CustomDesign con ID {} por artista {}: " + e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }
@@ -77,7 +77,7 @@ public class CustomDesignController {
         return ResponseEntity.ok(designs);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/detail/{id}")
     public ResponseEntity<CustomDesign> getCustomDesignById(@PathVariable Long id) {
         LOGGER.info("Request para obtener CustomDesign con ID {}", id);
         return customDesignService.getActiveCustomDesignById(id)

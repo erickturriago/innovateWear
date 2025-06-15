@@ -30,7 +30,7 @@ public class OrderController {
             LOGGER.info("Orden creada con ID: {}", createdOrder.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
         } catch (Exception e) {
-            LOGGER.error("Error al crear orden desde carrito: " + e.getMessage(), e);
+            LOGGER.error("Error al crear orden desde carrito: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().build();
         }
     }
@@ -42,7 +42,7 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/detail/{id}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
         LOGGER.info("Request para obtener orden con ID: {}", id);
         return orderService.getOrderById(id)
