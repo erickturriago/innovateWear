@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -44,6 +45,7 @@ public class CustomDesignService {
         newDesign.setDescription(designFromRequest.getDescription());
         newDesign.setPrice(designFromRequest.getPrice());
         newDesign.setIsPublic(designFromRequest.getIsPublic());
+        newDesign.setPreviewImageUrl(designFromRequest.getPreviewImageUrl());
 
         CustomDesign savedDesign = customDesignRepository.save(newDesign);
 
@@ -67,10 +69,24 @@ public class CustomDesignService {
         CustomDesign existingDesign = customDesignRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Diseño personalizado no encontrado con ID: " + id));
 
-        existingDesign.setName(designDetails.getName());
-        existingDesign.setDescription(designDetails.getDescription());
-        existingDesign.setPrice(designDetails.getPrice());
-        existingDesign.setIsPublic(designDetails.getIsPublic());
+        if (designDetails.getName() != null) {
+            existingDesign.setName(designDetails.getName());
+        }
+        if (designDetails.getDescription() != null) {
+            existingDesign.setDescription(designDetails.getDescription());
+        }
+        if (designDetails.getPrice() != null) {
+            existingDesign.setPrice(designDetails.getPrice());
+        }
+        if (designDetails.getIsPublic() != null) {
+            existingDesign.setIsPublic(designDetails.getIsPublic());
+        }
+        if (designDetails.getPreviewImageUrl() != null) {
+            existingDesign.setPreviewImageUrl(designDetails.getPreviewImageUrl());
+        }
+        if (designDetails.getActive() != null) {
+            existingDesign.setActive(designDetails.getActive());
+        }
 
         return customDesignRepository.save(existingDesign);
     }

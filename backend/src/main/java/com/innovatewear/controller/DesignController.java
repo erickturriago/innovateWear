@@ -47,6 +47,19 @@ public class DesignController {
                 });
     }
 
+    @GetMapping("/by-artist/{artistId}")
+    public ResponseEntity<List<Design>> getDesignsByArtist(@PathVariable Long artistId) {
+        LOGGER.info("Request para obtener diseños del artista con ID: {}", artistId);
+        try {
+            List<Design> designs = designService.getDesignsByArtist(artistId);
+            return ResponseEntity.ok(designs);
+        } catch (Exception e) {
+            LOGGER.error("Error al obtener diseños para el artista con ID {}: {}", artistId, e.getMessage(), e);
+            // Puedes devolver una lista vacía o un error de servidor
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
     @PostMapping
     public ResponseEntity<Design> createDesign(@RequestBody Design design) {
         LOGGER.info("Request para crear diseño: {}", JsonPrinter.toString(design));

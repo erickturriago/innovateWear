@@ -55,6 +55,9 @@ public class CustomDesign {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "preview_image_url", length = 500)
+    private String previewImageUrl;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
