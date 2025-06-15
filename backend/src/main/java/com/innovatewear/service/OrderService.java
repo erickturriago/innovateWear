@@ -1,14 +1,19 @@
 package com.innovatewear.service;
 
+import com.innovatewear.entity.CustomDesign;
 import com.innovatewear.entity.Order;
 import com.innovatewear.entity.Order.OrderStatus;
+import com.innovatewear.entity.OrderItem;
+import com.innovatewear.entity.User;
+import com.innovatewear.repository.CustomDesignRepository;
 import com.innovatewear.repository.OrderRepository;
 import com.innovatewear.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,126 +23,65 @@ public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
-
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private CustomDesignRepository customDesignRepository;
 
-    // Obtener todos los pedidos
+    public Order createOrderFromCart(Order orderFromRequest) {
+        // 1. Validar y obtener el cliente que realiza la compra
+        User customer = userRepository.findById(orderFromRequest.getUser().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con ID: " + orderFromRequest.getUser().getId()));
+
+        // 2. Preparar el objeto principal de la Orden
+        Order newOrder = new Order();
+        newOrder.setUser(customer);
+        newOrder.setCustomerName(orderFromRequest.getCustomerName());
+        newOrder.setCustomerEmail(orderFromRequest.getCustomerEmail());
+        newOrder.setCustomerPhone(orderFromRequest.getCustomerPhone());
+        newOrder.setNotes(orderFromRequest.getNotes());
+        newOrder.setStatus(OrderStatus.PENDIENTE); // Las órdenes siempre se crean como PENDIENTE
+
+        BigDecimal totalOrderPrice = BigDecimal.ZERO;
+
+        // 3. Procesar cada item del carrito
+        if (orderFromRequest.getItems() != null && !orderFromRequest.getItems().isEmpty()) {
+            for (OrderItem itemFromRequest : orderFromRequest.getItems()) {
+                // Validar que el CustomDesign existe y está activo
+                CustomDesign design = customDesignRepository.findByIdAndActiveTrue(itemFromRequest.getCustomDesign().getId())
+                        .orElseThrow(() -> new EntityNotFoundException("El diseño personalizado con ID " + itemFromRequest.getCustomDesign().getId() + " no está disponible."));
+
+                // Crear y configurar el nuevo OrderItem
+                OrderItem newItem = new OrderItem();
+                newItem.setCustomDesign(design);
+                newItem.setQuantity(itemFromRequest.getQuantity());
+                newItem.setSize(itemFromRequest.getSize());
+                newItem.setUnitPrice(design.getPrice()); // El precio se toma de la BD, no del request
+
+                // Enlazar el item a su orden padre
+                newItem.setOrder(newOrder);
+
+                // Añadir el item procesado a la lista de la orden
+                newOrder.getItems().add(newItem);
+
+                // Acumular el precio total
+                BigDecimal subtotal = design.getPrice().multiply(BigDecimal.valueOf(itemFromRequest.getQuantity()));
+                totalOrderPrice = totalOrderPrice.add(subtotal);
+            }
+        }
+
+        // 4. Establecer el total final en la orden
+        newOrder.setTotal(totalOrderPrice);
+
+        // 5. Guardar la orden. La cascada se encargará de guardar los OrderItems.
+        return orderRepository.save(newOrder);
+    }
+
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
     }
 
-    // Obtener pedido por ID
     public Optional<Order> getOrderById(Long id) {
         return orderRepository.findById(id);
-    }
-
-    // Crear nuevo pedido
-    public Order createOrder(Order order) {
-        // Verificar que el usuario existe
-        if (order.getUser() != null && order.getUser().getId() != null) {
-            if (!userRepository.existsById(order.getUser().getId())) {
-                throw new RuntimeException("Usuario no encontrado");
-            }
-        }
-
-        // Establecer estado inicial si no está definido
-        if (order.getStatus() == null) {
-            order.setStatus(OrderStatus.PENDIENTE);
-        }
-
-        return orderRepository.save(order);
-    }
-
-    // Actualizar pedido
-    public Order updateOrder(Long id, Order orderDetails) {
-        Optional<Order> optionalOrder = orderRepository.findById(id);
-
-        if (optionalOrder.isPresent()) {
-            Order existingOrder = optionalOrder.get();
-
-            existingOrder.setTotal(orderDetails.getTotal());
-            existingOrder.setStatus(orderDetails.getStatus());
-            existingOrder.setCustomerName(orderDetails.getCustomerName());
-            existingOrder.setCustomerPhone(orderDetails.getCustomerPhone());
-            existingOrder.setCustomerEmail(orderDetails.getCustomerEmail());
-            existingOrder.setNotes(orderDetails.getNotes());
-
-            return orderRepository.save(existingOrder);
-        }
-
-        throw new RuntimeException("Pedido no encontrado con ID: " + id);
-    }
-
-    // Actualizar estado del pedido
-    public Order updateOrderStatus(Long id, OrderStatus newStatus) {
-        Optional<Order> optionalOrder = orderRepository.findById(id);
-
-        if (optionalOrder.isPresent()) {
-            Order order = optionalOrder.get();
-            order.setStatus(newStatus);
-            return orderRepository.save(order);
-        }
-
-        throw new RuntimeException("Pedido no encontrado con ID: " + id);
-    }
-
-    // Eliminar pedido
-    public void deleteOrder(Long id) {
-        if (orderRepository.existsById(id)) {
-            orderRepository.deleteById(id);
-        } else {
-            throw new RuntimeException("Pedido no encontrado con ID: " + id);
-        }
-    }
-
-    // Buscar pedidos por usuario
-    public List<Order> getOrdersByUser(Long userId) {
-        return orderRepository.findByUserId(userId);
-    }
-
-    // Buscar pedidos por estado
-    public List<Order> getOrdersByStatus(OrderStatus status) {
-        return orderRepository.findByStatus(status);
-    }
-
-    // Obtener pedidos pendientes (para admin)
-    public List<Order> getPendingOrders() {
-        return orderRepository.findByStatusOrderByCreatedAtAsc(OrderStatus.PENDIENTE);
-    }
-
-    // Obtener pedidos en proceso
-    public List<Order> getProcessingOrders() {
-        return orderRepository.findByStatus(OrderStatus.PROCESANDO);
-    }
-
-    // Buscar pedidos por email del cliente
-    public List<Order> getOrdersByCustomerEmail(String email) {
-        return orderRepository.findByCustomerEmail(email);
-    }
-
-    // Buscar pedidos por nombre del cliente
-    public List<Order> searchOrdersByCustomerName(String name) {
-        return orderRepository.findByCustomerNameContainingIgnoreCase(name);
-    }
-
-    // Buscar pedidos con filtros múltiples
-    public List<Order> searchOrders(Long userId, OrderStatus status, String email) {
-        return orderRepository.findOrdersWithFilters(userId, status, email);
-    }
-
-    // Buscar pedidos por rango de fechas
-    public List<Order> getOrdersByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        return orderRepository.findByCreatedAtBetween(startDate, endDate);
-    }
-
-    // Contar pedidos por estado
-    public long countOrdersByStatus(OrderStatus status) {
-        return orderRepository.countByStatus(status);
-    }
-
-    // Verificar si existe pedido
-    public boolean existsById(Long id) {
-        return orderRepository.existsById(id);
     }
 }
