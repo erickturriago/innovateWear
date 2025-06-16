@@ -2,13 +2,16 @@ package com.innovatewear.controller;
 
 import com.innovatewear.entity.CustomDesign;
 import com.innovatewear.service.CustomDesignService;
+import com.innovatewear.utils.JsonPrinter;
+import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/custom-designs")
@@ -18,158 +21,101 @@ public class CustomDesignController {
     @Autowired
     private CustomDesignService customDesignService;
 
-    // GET /api/custom-designs - Obtener todos los diseños activos
-    @GetMapping
-    public ResponseEntity<List<CustomDesign>> getAllCustomDesigns() {
-        List<CustomDesign> designs = customDesignService.getActiveCustomDesigns();
-        return ResponseEntity.ok(designs);
-    }
+    private final Logger LOGGER = LoggerFactory.getLogger(CustomDesignController.class);
 
-    // GET /api/custom-designs/all - Obtener todos (incluyendo inactivos)
-    @GetMapping("/all")
-    public ResponseEntity<List<CustomDesign>> getAllCustomDesignsIncludingInactive() {
-        List<CustomDesign> designs = customDesignService.getAllCustomDesigns();
-        return ResponseEntity.ok(designs);
-    }
-
-    // GET /api/custom-designs/{id} - Obtener diseño por ID
-    @GetMapping("/{id}")
-    public ResponseEntity<CustomDesign> getCustomDesignById(@PathVariable Long id) {
-        Optional<CustomDesign> design = customDesignService.getActiveCustomDesignById(id);
-
-        if (design.isPresent()) {
-            return ResponseEntity.ok(design.get());
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // POST /api/custom-designs - Crear nuevo diseño personalizado
     @PostMapping
     public ResponseEntity<CustomDesign> createCustomDesign(@RequestBody CustomDesign customDesign) {
+        LOGGER.info("Request para crear CustomDesign: {}", JsonPrinter.toString(customDesign));
         try {
             CustomDesign createdDesign = customDesignService.createCustomDesign(customDesign);
+            LOGGER.info("CustomDesign creado con ID: {}", createdDesign.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(createdDesign);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            LOGGER.error("Error al crear CustomDesign: " + e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    // PUT /api/custom-designs/{id} - Actualizar diseño
     @PutMapping("/{id}")
-    public ResponseEntity<CustomDesign> updateCustomDesign(@PathVariable Long id, @RequestBody CustomDesign designDetails) {
+    public ResponseEntity<CustomDesign> updateCustomDesign(@PathVariable Long id, @RequestBody CustomDesign customDesignDetails) {
+        LOGGER.info("Request para actualizar CustomDesign con ID {}: {}", id, JsonPrinter.toString(customDesignDetails));
         try {
-            CustomDesign updatedDesign = customDesignService.updateCustomDesign(id, designDetails);
+            // Se elimina la lógica de extracción del creator.id que causaba el error
+            CustomDesign updatedDesign = customDesignService.updateCustomDesign(id, customDesignDetails);
             return ResponseEntity.ok(updatedDesign);
-        } catch (RuntimeException e) {
+        } catch (EntityNotFoundException e) {
+            LOGGER.error("Diseño no encontrado con ID {}: {}", id, e.getMessage());
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            LOGGER.error("Error inesperado al actualizar CustomDesign con ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    // DELETE /api/custom-designs/{id} - Desactivar diseño (borrado lógico)
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivateCustomDesign(@PathVariable Long id) {
+    @DeleteMapping("/{id}/by-artist/{artistId}")
+    public ResponseEntity<Void> deactivateCustomDesign(@PathVariable Long id, @PathVariable Long artistId) {
+        LOGGER.info("Request para desactivar CustomDesign con ID {} por artista {}", id, artistId);
         try {
-            customDesignService.deactivateCustomDesign(id);
+            customDesignService.deactivateCustomDesign(id, artistId);
+            LOGGER.info("CustomDesign con ID {} desactivado correctamente", id);
             return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
+            LOGGER.error("Error al desactivar CustomDesign con ID {} por artista {}: " + e.getMessage(), e);
             return ResponseEntity.notFound().build();
         }
     }
 
-    // DELETE /api/custom-designs/{id}/permanent - Eliminar permanentemente
-    @DeleteMapping("/{id}/permanent")
-    public ResponseEntity<Void> deleteCustomDesignPermanently(@PathVariable Long id) {
-        try {
-            customDesignService.deleteCustomDesign(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // GET /api/custom-designs/artist/{artistId} - Diseños por artista
-    @GetMapping("/artist/{artistId}")
-    public ResponseEntity<List<CustomDesign>> getCustomDesignsByArtist(@PathVariable Long artistId) {
-        List<CustomDesign> designs = customDesignService.getCustomDesignsByArtist(artistId);
-        return ResponseEntity.ok(designs);
-    }
-
-    // GET /api/custom-designs/public - Diseños públicos (que otros pueden comprar)
     @GetMapping("/public")
     public ResponseEntity<List<CustomDesign>> getPublicCustomDesigns() {
+        LOGGER.info("Request para obtener todos los CustomDesigns públicos");
         List<CustomDesign> designs = customDesignService.getPublicCustomDesigns();
         return ResponseEntity.ok(designs);
     }
 
-    // GET /api/custom-designs/artist/{artistId}/private - Diseños privados del artista
-    @GetMapping("/artist/{artistId}/private")
-    public ResponseEntity<List<CustomDesign>> getPrivateCustomDesignsByArtist(@PathVariable Long artistId) {
-        List<CustomDesign> designs = customDesignService.getPrivateCustomDesignsByArtist(artistId);
+    @GetMapping("/creator/{creatorId}")
+    public ResponseEntity<List<CustomDesign>> getDesignsByCreator(@PathVariable Long creatorId) {
+        LOGGER.info("Request para obtener CustomDesigns del creador con ID {}", creatorId);
+        List<CustomDesign> designs = customDesignService.getCustomDesignsByCreator(creatorId);
         return ResponseEntity.ok(designs);
     }
 
-    // GET /api/custom-designs/artist/{artistId}/public - Diseños públicos del artista
-    @GetMapping("/artist/{artistId}/public")
-    public ResponseEntity<List<CustomDesign>> getPublicCustomDesignsByArtist(@PathVariable Long artistId) {
-        List<CustomDesign> designs = customDesignService.getPublicCustomDesignsByArtist(artistId);
-        return ResponseEntity.ok(designs);
-    }
-
-    // GET /api/custom-designs/product/{productId} - Diseños por producto
-    @GetMapping("/product/{productId}")
-    public ResponseEntity<List<CustomDesign>> getCustomDesignsByProduct(@PathVariable Long productId) {
-        List<CustomDesign> designs = customDesignService.getCustomDesignsByProduct(productId);
-        return ResponseEntity.ok(designs);
-    }
-
-    // GET /api/custom-designs/search?name=nombre - Buscar por nombre
-    @GetMapping("/search")
-    public ResponseEntity<List<CustomDesign>> searchCustomDesignsByName(@RequestParam String name) {
-        List<CustomDesign> designs = customDesignService.searchCustomDesignsByName(name);
-        return ResponseEntity.ok(designs);
-    }
-
-    // GET /api/custom-designs/filter?artistId=1&productId=2&isPublic=true&name=test - Filtros múltiples
-    @GetMapping("/filter")
-    public ResponseEntity<List<CustomDesign>> searchCustomDesignsWithFilters(
-            @RequestParam(required = false) Long artistId,
-            @RequestParam(required = false) Long productId,
-            @RequestParam(required = false) Boolean isPublic,
-            @RequestParam(required = false) String name) {
-
-        List<CustomDesign> designs = customDesignService.searchCustomDesigns(artistId, productId, isPublic, name);
-        return ResponseEntity.ok(designs);
-    }
-
-    // PUT /api/custom-designs/{id}/make-public - Hacer público un diseño
-    @PutMapping("/{id}/make-public")
-    public ResponseEntity<CustomDesign> makePublic(@PathVariable Long id) {
+    @PutMapping("/{id}/toggle-public")
+    public ResponseEntity<CustomDesign> togglePublicStatus(@PathVariable Long id) {
+        LOGGER.info("Admin request para cambiar estado público del CustomDesign con ID {}", id);
         try {
-            CustomDesign updatedDesign = customDesignService.makePublic(id);
+            CustomDesign updatedDesign = customDesignService.togglePublicStatus(id);
             return ResponseEntity.ok(updatedDesign);
-        } catch (RuntimeException e) {
+        } catch (EntityNotFoundException e) {
             return ResponseEntity.notFound().build();
         }
     }
 
-    // PUT /api/custom-designs/{id}/make-private - Hacer privado un diseño
-    @PutMapping("/{id}/make-private")
-    public ResponseEntity<CustomDesign> makePrivate(@PathVariable Long id) {
-        try {
-            CustomDesign updatedDesign = customDesignService.makePrivate(id);
-            return ResponseEntity.ok(updatedDesign);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    @GetMapping("/detail/{id}")
+    public ResponseEntity<CustomDesign> getCustomDesignById(@PathVariable Long id) {
+        LOGGER.info("Request para obtener CustomDesign con ID {}", id);
+        return customDesignService.getActiveCustomDesignById(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> {
+                    LOGGER.warn("CustomDesign con ID {} no encontrado.", id);
+                    return ResponseEntity.notFound().build();
+                });
     }
 
-    // GET /api/custom-designs/artist/{artistId}/count - Contar diseños por artista
-    @GetMapping("/artist/{artistId}/count")
-    public ResponseEntity<Long> countCustomDesignsByArtist(@PathVariable Long artistId) {
-        long count = customDesignService.countCustomDesignsByArtist(artistId);
-        return ResponseEntity.ok(count);
+    @GetMapping("/all")
+    public ResponseEntity<List<CustomDesign>> getAllCustomDesigns() {
+        LOGGER.info("Admin request para obtener TODOS los CustomDesigns");
+        List<CustomDesign> designs = customDesignService.getAllCustomDesigns();
+        return ResponseEntity.ok(designs);
+    }
+
+    @PutMapping("/{id}/toggle-activation")
+    public ResponseEntity<CustomDesign> toggleActivation(@PathVariable Long id) {
+        LOGGER.info("Admin request para cambiar estado de activación del CustomDesign con ID {}", id);
+        try {
+            CustomDesign updatedDesign = customDesignService.toggleActivation(id);
+            return ResponseEntity.ok(updatedDesign);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
