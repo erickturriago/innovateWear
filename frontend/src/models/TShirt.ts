@@ -10,4 +10,5 @@ export interface TShirt {
   type?: 'short' | 'long' | 'hoodie';
   color?: string;
   design?: string;
+  customizable?: string;
 }

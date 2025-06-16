@@ -1,17 +1,19 @@
-// src/pages/Home.tsx
+// src/pages/HomePage.tsx
 import { useState, useEffect } from 'react';
-import { Box, Alert, Skeleton } from '@mui/material'; // Ya no necesitamos Typography aquí
+import { Box, Alert, Skeleton } from '@mui/material';
 import HeroCarousel from '../components/HeroCarousel';
 import ProductCard from '../components/ProductCard';
 import PrintCard from '../components/PrintCard';
 import ViewMoreCard from '../components/ViewMoreCard';
-import HorizontalProductScroller from '../components/HorizontalProductScroller'; // <-- IMPORTAMOS EL NUEVO COMPONENTE
-import tshirtApi from '../api/tshirtApi';
+import HorizontalProductScroller from '../components/HorizontalProductScroller';
+// ¡CAMBIO IMPORTANTE! Se importa el api de diseños personalizados.
+import customDesignApi from '../api/customDesignApi';
 import printApi from '../api/designApi';
 import type { TShirt } from '../models/TShirt';
 import type { Print } from '../models/Print';
 
 const Home = () => {
+  // Este estado ahora guardará los diseños públicos que actúan como camisetas
   const [tshirts, setTshirts] = useState<TShirt[]>([]);
   const [prints, setPrints] = useState<Print[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +24,8 @@ const Home = () => {
       try {
         setLoading(true);
         const [tshirtsData, printsData] = await Promise.all([
-          tshirtApi.getAll(),
+          // ¡AQUÍ ESTÁ EL CAMBIO! Se llama a la nueva función
+          customDesignApi.getPublicDesigns(), 
           printApi.getAll(),
         ]);
         setTshirts(tshirtsData);
@@ -36,7 +39,6 @@ const Home = () => {
     loadData();
   }, []);
 
-  // El esqueleto ahora es para una fila, no una cuadrícula
   const renderSkeletons = (count = 4) => (
     <Box display="flex" gap={3}>
       {Array.from(new Array(count)).map((_, index) => (
@@ -62,8 +64,7 @@ const Home = () => {
           </>
         ) : (
           <>
-            {/* Sección de Camisetas con el Scroller */}
-            <HorizontalProductScroller title="Camisetas populares">
+            <HorizontalProductScroller title="Camisetas Populares">
               {tshirts.map((camiseta) => (
                 <Box key={camiseta.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
                   <ProductCard {...camiseta} />
@@ -74,8 +75,7 @@ const Home = () => {
               </Box>
             </HorizontalProductScroller>
 
-            {/* Sección de Estampas con el Scroller */}
-            <HorizontalProductScroller title="Estampas populares">
+            <HorizontalProductScroller title="Estampas Populares">
               {prints.map((estampa) => (
                 <Box key={estampa.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
                   <PrintCard {...estampa} />

@@ -1,9 +1,8 @@
 // src/store/cartStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CartItem, PredesignedCartItem } from '../models/CartItem';
+import type { CartItem } from '../models/CartItem';
 
-// Definimos la "forma" de nuestro store: el estado y las acciones
 interface CartState {
   items: CartItem[];
   addProduct: (newItem: CartItem) => void;
@@ -13,65 +12,63 @@ interface CartState {
 }
 
 export const useCartStore = create<CartState>()(
-  // `persist` es un "middleware" opcional de Zustand.
-  // Guarda automáticamente el estado del carrito en el localStorage del navegador,
-  // para que si el usuario refresca la página, su carrito no se vacíe. ¡Muy útil!
   persist(
-    (set, get) => ({
+    (set) => ({
       items: [],
 
-      // Acción para añadir un producto
       addProduct: (newItem) => {
-        const items = get().items;
-        const existingItemIndex = items.findIndex(item => item.id === newItem.id);
-
-        if (existingItemIndex !== -1) {
-          // Si el item ya existe (mismo producto y misma talla), solo aumentamos la cantidad
-          const updatedItems = [...items];
-          updatedItems[existingItemIndex].quantity += newItem.quantity;
-          set({ items: updatedItems });
-        } else {
-          // Si es un item nuevo, lo añadimos al array
-          set({ items: [...items, newItem] });
-        }
+        set((state) => {
+            const existingItem = state.items.find(item => item.id === newItem.id);
+            if (existingItem) {
+                // Si ya existe, actualiza la cantidad y el precio
+                return {
+                    items: state.items.map(item =>
+                        item.id === newItem.id
+                        ? { ...item, quantity: item.quantity + newItem.quantity, price: item.price + newItem.price }
+                        : item
+                    )
+                };
+            }
+            // Si es nuevo, lo añade
+            return { items: [...state.items, newItem] };
+        });
       },
 
-      // Acción para eliminar un producto completamente
       removeProduct: (itemId) => {
-        set({ items: get().items.filter(item => item.id !== itemId) });
+        set((state) => ({ items: state.items.filter(item => item.id !== itemId) }));
       },
 
-      // Acción para aumentar o disminuir la cantidad de un producto
       updateQuantity: (itemId, action) => {
-        const items = get().items;
-        const itemIndex = items.findIndex(item => item.id === itemId);
-
-        if (itemIndex === -1) return;
-
-        const updatedItems = [...items];
-        const currentItem = updatedItems[itemIndex];
-
-        if (action === 'increase') {
-          currentItem.quantity += 1;
-        } else if (action === 'decrease') {
-          if (currentItem.quantity > 1) {
-            currentItem.quantity -= 1;
-          } else {
-            // Si la cantidad es 1 y se disminuye, se elimina el producto
-            updatedItems.splice(itemIndex, 1);
-          }
-        }
-        
-        set({ items: updatedItems });
+        set((state) => {
+          const updatedItems = state.items
+            .map(item => {
+              if (item.id === itemId) {
+                const newQuantity = action === 'increase' ? item.quantity + 1 : item.quantity - 1;
+                
+                if (newQuantity > 0) {
+                  return {
+                    ...item,
+                    quantity: newQuantity,
+                    // RECALCULA EL PRECIO TOTAL USANDO EL PRECIO UNITARIO
+                    price: item.unitPrice * newQuantity, 
+                  };
+                }
+                return null;
+              }
+              return item;
+            })
+            .filter((item): item is CartItem => item !== null); 
+          
+          return { items: updatedItems };
+        });
       },
 
-      // Acción para vaciar todo el carrito
       clearCart: () => {
         set({ items: [] });
       },
     }),
     {
-      name: 'innovatewear-cart-storage', // Nombre para el guardado en localStorage
+      name: 'innovatewear-cart-storage',
     }
   )
 );

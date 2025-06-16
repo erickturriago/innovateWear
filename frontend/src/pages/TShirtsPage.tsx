@@ -2,13 +2,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Alert, Skeleton, Paper, TextField, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import ProductCard from '../components/ProductCard';
-import tshirtApi from '../api/tshirtApi';
+// ¡CAMBIO IMPORTANTE! Se importa el api de diseños personalizados.
+import customDesignApi from '../api/customDesignApi';
 import type { TShirt } from '../models/TShirt';
 
 const TShirtsPage = () => {
   const [allTshirts, setAllTshirts] = useState<TShirt[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  // Estado para la opción de ordenamiento
   const [sortOption, setSortOption] = useState('default');
   
   const [loading, setLoading] = useState(true);
@@ -18,9 +18,9 @@ const TShirtsPage = () => {
     const loadTshirts = async () => {
       try {
         setLoading(true);
-        const tshirtsData = await tshirtApi.getAll();
-        // Para tener más datos para filtrar, los duplicamos
-        setAllTshirts([...tshirtsData, ...tshirtsData.reverse(), ...tshirtsData]);
+        // ¡AQUÍ ESTÁ EL CAMBIO! Se llama a la nueva función
+        const tshirtsData = await customDesignApi.getPublicDesigns(); 
+        setAllTshirts(tshirtsData);
       } catch (err) {
         setError('Error al cargar el catálogo de camisetas.');
       } finally {
@@ -29,15 +29,12 @@ const TShirtsPage = () => {
     };
     loadTshirts();
   }, []);
-
-  // Usamos useMemo para optimizar el filtrado y ordenamiento.
-  // Solo se volverá a calcular si los datos, la búsqueda o el ordenamiento cambian.
+  
   const processedTshirts = useMemo(() => {
     let filtered = allTshirts.filter(tshirt =>
       tshirt.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Hacemos una copia antes de ordenar para no mutar el array original
     const sorted = [...filtered];
 
     switch (sortOption) {
@@ -51,7 +48,6 @@ const TShirtsPage = () => {
         sorted.sort((a, b) => a.title.localeCompare(b.title));
         break;
       default:
-        // No se aplica ningún ordenamiento extra
         break;
     }
     
@@ -108,13 +104,13 @@ const TShirtsPage = () => {
         <Box>
           <Box display="grid" gap={3} gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }}>
             {processedTshirts.map((camiseta) => (
-              <ProductCard key={camiseta.id + Math.random()} {...camiseta} />
+              <ProductCard key={camiseta.id} {...camiseta} />
             ))}
           </Box>
           {processedTshirts.length === 0 && !loading && (
-            <Typography sx={{ mt: 4, textAlign: 'center' }}>
-              No se encontraron camisetas que coincidan con tus criterios.
-            </Typography>
+              <Typography sx={{ mt: 4, textAlign: 'center' }}>
+                No se encontraron camisetas que coincidan con tus criterios.
+              </Typography>
           )}
         </Box>
       )}

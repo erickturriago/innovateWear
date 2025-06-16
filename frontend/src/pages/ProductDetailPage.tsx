@@ -5,24 +5,34 @@ import { Box, Typography, Button, Skeleton, Alert, Paper, ToggleButtonGroup, Tog
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import tshirtApi from '../api/tshirtApi';
-import type { TShirt } from '../models/TShirt';
+import customDesignApi from '../api/customDesignApi'; 
 import type { TShirtSize, PredesignedCartItem } from '../models/CartItem';
 import { useCartStore } from '../store/cartStore';
+import { useNotificationStore } from '../store/notificationStore';
+
+interface CustomDesign {
+    id: number;
+    name: string;
+    price: number;
+    previewImageUrl: string;
+    product: {
+      type: string;
+    };
+}
 
 const ProductDetailPage = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   
-  const [product, setProduct] = useState<TShirt | null>(null);
+  const [product, setProduct] = useState<CustomDesign | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [selectedSize, setSelectedSize] = useState<TShirtSize>('M');
   const [quantity, setQuantity] = useState(1);
 
-  // Obtenemos la acción para añadir productos de nuestro store (Zustand)
   const addProductToCart = useCartStore(state => state.addProduct);
+  const showNotification = useNotificationStore(state => state.showNotification);
 
   useEffect(() => {
     if (!productId) {
@@ -34,7 +44,7 @@ const ProductDetailPage = () => {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const fetchedProduct = await tshirtApi.getById(productId);
+        const fetchedProduct = await customDesignApi.getById(Number(productId));
         if (fetchedProduct) {
           setProduct(fetchedProduct);
         } else {
@@ -53,32 +63,36 @@ const ProductDetailPage = () => {
     if (!product) return;
 
     const cartItem: PredesignedCartItem = {
-      id: `${product.id}-${selectedSize}`, // ID único para producto + talla
+      id: `${product.id}-${selectedSize}`,
       type: 'predesigned',
-      product: product,
+      customDesignId: product.id,
       size: selectedSize,
       quantity: quantity,
-      price: product.price,
+      price: product.price * quantity,
+      unitPrice: product.price, // <-- AQUÍ SE AÑADE EL PRECIO UNITARIO
+      displayData: {
+        name: product.name,
+        image: product.previewImageUrl
+      }
     };
 
     addProductToCart(cartItem);
-    // Opcional: Redirigir al carrito o mostrar notificación
-    alert(`${quantity} x ${product.title} (Talla: ${selectedSize}) añadido al carrito!`);
-    navigate('/tshirts'); // Volvemos al catálogo después de añadir
+    showNotification(`${quantity} x ${product.name} (Talla: ${selectedSize}) añadido al carrito!`, 'success');
+    navigate('/tshirts');
   };
 
   if (loading) {
     return (
-      <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={4}>
-        <Skeleton variant="rectangular" sx={{ width: '100%', height: { xs: 300, md: 500 }, borderRadius: 3 }} />
-        <Box>
-          <Skeleton variant="text" sx={{ fontSize: '3rem' }} width="80%" />
-          <Skeleton variant="text" sx={{ fontSize: '1.5rem' }} width="40%" />
-          <Skeleton variant="text" sx={{ fontSize: '1rem' }} width="100%" height={80} />
-          <Skeleton variant="rectangular" sx={{ width: '100%', height: 100, mt: 2 }} />
-          <Skeleton variant="rectangular" sx={{ width: '100%', height: 50, mt: 2 }} />
+        <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={4}>
+            <Skeleton variant="rectangular" sx={{ width: '100%', height: { xs: 300, md: 500 }, borderRadius: 3 }} />
+            <Box>
+                <Skeleton variant="text" sx={{ fontSize: '3rem' }} width="80%" />
+                <Skeleton variant="text" sx={{ fontSize: '1.5rem' }} width="40%" />
+                <Skeleton variant="text" sx={{ fontSize: '1rem' }} width="100%" height={80} />
+                <Skeleton variant="rectangular" sx={{ width: '100%', height: 100, mt: 2 }} />
+                <Skeleton variant="rectangular" sx={{ width: '100%', height: 50, mt: 2 }} />
+            </Box>
         </Box>
-      </Box>
     );
   }
 
@@ -88,19 +102,17 @@ const ProductDetailPage = () => {
   return (
     <Paper elevation={3} sx={{ p: 4, borderRadius: 4 }}>
       <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={{ xs: 3, md: 5 }}>
-        {/* Columna Izquierda: Imagen */}
         <Box>
-          <img src={product.image} alt={product.title} style={{ width: '100%', height: 'auto', borderRadius: '12px', objectFit: 'contain' }} />
+            <img src={product.previewImageUrl} alt={product.name} style={{ width: '100%', height: 'auto', borderRadius: '12px', objectFit: 'contain' }} />
         </Box>
 
-        {/* Columna Derecha: Detalles y Acciones */}
         <Box display="flex" flexDirection="column" gap={2}>
-          <Typography variant="caption" color="primary">{product.category.toUpperCase()}</Typography>
-          <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>{product.title}</Typography>
+          <Typography variant="caption" color="primary">{product.product.type.toUpperCase()}</Typography>
+          <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold' }}>{product.name}</Typography>
           <Typography variant="h4" sx={{ color: 'text.secondary', mb: 2 }}>{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(product.price)}</Typography>
           
           <Typography fontWeight="bold">Talla:</Typography>
-          <ToggleButtonGroup value={selectedSize} exclusive onChange={(_, newSize) => { if(newSize) setSelectedSize(newSize); }} aria-label="Tallas">
+          <ToggleButtonGroup value={selectedSize} exclusive onChange={(_, newSize) => { if(newSize) setSelectedSize(newSize as TShirtSize); }} aria-label="Tallas">
             <ToggleButton value="S">S</ToggleButton>
             <ToggleButton value="M">M</ToggleButton>
             <ToggleButton value="L">L</ToggleButton>

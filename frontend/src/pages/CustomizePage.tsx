@@ -1,209 +1,516 @@
 // src/pages/CustomizePage.tsx
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Paper, Button, Skeleton, Tooltip,
-  ToggleButtonGroup, ToggleButton, IconButton
+  Box, Typography, Paper, Button, Tooltip, ToggleButtonGroup, ToggleButton,
+  IconButton, TextField, Select, MenuItem, FormControl, InputLabel,
+  CircularProgress, SelectChangeEvent,
+  Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
-import * as fabric from 'fabric';
+import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva';
+import Konva from 'konva';
 
 import designApi from '../api/designApi';
+import tshirtApi from '../api/tshirtApi';
+import categoryApi, { type DesignCategory } from '../api/categoryApi';
+import customDesignApi from '../api/customDesignApi';
 import { useCartStore } from '../store/cartStore';
+import { useAuth } from '../auth/useAuth'; // Importamos useAuth
 import { CustomTshirtBuilder } from '../patterns/builder/CustomTshirtBuilder';
-import { availableGarments } from '../data/mockData';
+import { useNotificationStore } from '../store/notificationStore';
+import { FirebaseFacade } from '../patterns/facade/FirebaseFacade';
+import { dataURLtoFile } from '../utils/dataUrlToFile';
 import type { Print } from '../models/Print';
-import type { BaseGarment, ColorOption } from '../models/Garment';
-import type { TShirtSize } from '../models/CartItem';
+import type { TShirt } from '../models/TShirt';
+import type { TShirtSize, CustomCartItem } from '../models/CartItem';
+
+// Hook personalizado para cargar imágenes
+const useImage = (url: string, crossOrigin: string = 'Anonymous'): [HTMLImageElement | undefined] => {
+    const [image, setImage] = useState<HTMLImageElement>();
+    useEffect(() => {
+        if (!url) {
+            setImage(undefined);
+            return;
+        };
+        const img = new window.Image();
+        img.src = url;
+        img.crossOrigin = crossOrigin;
+        img.onload = () => setImage(img);
+    }, [url, crossOrigin]);
+    return [image];
+};
+
+// Componente para una estampa individual, con su transformador
+const StampImage = ({ shapeProps, isSelected, onSelect, onChange }: any) => {
+    const shapeRef = useRef<Konva.Image>(null);
+    const trRef = useRef<Konva.Transformer>(null);
+    const [image] = useImage(shapeProps.src);
+
+    useEffect(() => {
+        if (isSelected) {
+            trRef.current?.nodes([shapeRef.current!]);
+            trRef.current?.getLayer()?.batchDraw();
+        }
+    }, [isSelected]);
+
+    return (
+        <>
+            <KonvaImage
+                onClick={onSelect}
+                onTap={onSelect}
+                ref={shapeRef}
+                {...shapeProps}
+                image={image}
+                draggable
+                onDragEnd={(e) => {
+                    onChange({ ...shapeProps, x: e.target.x(), y: e.target.y() });
+                }}
+                onTransformEnd={() => {
+                    const node = shapeRef.current;
+                    if (node) {
+                        const scaleX = node.scaleX();
+                        const scaleY = node.scaleY();
+                        node.scaleX(1);
+                        node.scaleY(1);
+                        onChange({
+                            ...shapeProps,
+                            x: node.x(),
+                            y: node.y(),
+                            width: Math.max(5, node.width() * scaleX),
+                            height: Math.max(5, node.height() * scaleY),
+                            rotation: node.rotation()
+                        });
+                    }
+                }}
+            />
+            {isSelected && (
+                <Transformer
+                    ref={trRef}
+                    boundBoxFunc={(oldBox, newBox) => (newBox.width < 5 || newBox.height < 5) ? oldBox : newBox}
+                />
+            )}
+        </>
+    );
+};
+
+interface GroupedGarment {
+  name: string;
+  type: string;
+  variants: TShirt[];
+}
 
 const CustomizePage = () => {
   const navigate = useNavigate();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  const tShirtImageRef = useRef<fabric.Image | null>(null);
+  const { user, isArtist } = useAuth();
+  const showNotification = useNotificationStore(state => state.showNotification);
 
+  const [stamps, setStamps] = useState<any[]>([]);
+  const [selectedId, selectShape] = useState<string | null>(null);
+
+  const stageRef = useRef<Konva.Stage>(null);
+  const stageContainerRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 500, height: 500 });
+  
+  const [groupedGarments, setGroupedGarments] = useState<GroupedGarment[]>([]);
   const [prints, setPrints] = useState<Print[]>([]);
-  const [loadingPrints, setLoadingPrints] = useState(true);
+  const [filteredPrints, setFilteredPrints] = useState<Print[]>([]);
+  const [categories, setCategories] = useState<DesignCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [selectedGarment, setSelectedGarment] = useState<BaseGarment>(availableGarments[0]);
-  const [selectedColor, setSelectedColor] = useState<ColorOption>(availableGarments[0].colors[0]);
+  const [selectedGroup, setSelectedGroup] = useState<GroupedGarment | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<TShirt | null>(null);
+  const [tshirtImage] = useImage(selectedVariant?.image || '');
+  
+  const [tshirtImageSize, setTshirtImageSize] = useState({ width: 0, height: 0, x: 0, y: 0 });
+
   const [selectedSize, setSelectedSize] = useState<TShirtSize>('M');
   const [quantity, setQuantity] = useState(1);
-  
-  // AJUSTE: El estado ahora es un array
-  const [selectedPrints, setSelectedPrints] = useState<Print[]>([]);
-  
+  const [printFilters, setPrintFilters] = useState({ query: '', categoryId: 'all' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [designInfo, setDesignInfo] = useState({ name: '', description: '', price: '' });
+
   const [builder] = useState(() => new CustomTshirtBuilder());
   const addProductToCart = useCartStore((state) => state.addProduct);
 
-  const totalPrice = useMemo(() => {
-    let price = selectedGarment.price;
-    // Asumimos un costo fijo por estampa para la UI, el cálculo real lo hace el builder
-    price += selectedPrints.length * 15000; 
-    return price * quantity;
-  }, [selectedGarment, selectedPrints, quantity]);
+  const colorHexMap: { [key: string]: string } = { 'blanco': '#FFFFFF', 'negro': '#222222', 'gris': '#888888', 'rojo': '#B71C1C', 'azul': '#0D47A1' };
 
-  const handleColorChange = useCallback((color: string) => {
-    const tShirtImg = tShirtImageRef.current;
-    if (!tShirtImg) return;
-    
-    const newColorOption = selectedGarment.colors.find(c => c.value === color);
-    if (newColorOption) setSelectedColor(newColorOption);
-    
-    builder.setColor(color);
-
-    tShirtImg.filters = [];
-    if (color !== '#FFFFFF') {
-      const filter = new fabric.filters.BlendColor({ color, mode: 'tint' });
-      tShirtImg.filters.push(filter);
-    }
-    tShirtImg.applyFilters();
-    fabricCanvasRef.current?.requestRenderAll();
-  }, [builder, selectedGarment.colors]);
-
-  const updateGarmentImage = useCallback((imageUrl: string, canvas: fabric.Canvas) => {
-    if (tShirtImageRef.current) {
-        canvas.remove(tShirtImageRef.current);
-    }
-    fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' }).then(img => {
-        img.scaleToWidth(canvas.getWidth() * 0.9);
-        img.set({
-            selectable: false,
-            evented: false,
-            top: canvas.getHeight() / 2,
-            left: canvas.getWidth() / 2,
-            originX: 'center',
-            originY: 'center',
-        });
-        tShirtImageRef.current = img;
-        canvas.add(img);
-        (canvas as any).moveTo(img, 0);
-        handleColorChange(selectedColor.value);
-        canvas.requestRenderAll();
-    });
-  }, [handleColorChange, selectedColor.value]);
-  
   useEffect(() => {
-    if (!fabricCanvasRef.current) {
-      const canvas = new fabric.Canvas(canvasRef.current!, {
-        width: canvasContainerRef.current!.offsetWidth,
-        height: 500,
-      });
-      fabricCanvasRef.current = canvas;
-      
-      designApi.getAll().then(setPrints).catch(console.error).finally(() => setLoadingPrints(false));
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [allTshirts, allPrints, allCategories] = await Promise.all([
+          tshirtApi.getAll(),
+          designApi.getAll(),
+          categoryApi.getAll(),
+        ]);
+        const customizableTshirts = allTshirts.filter(t => t.customizable);
+        const groups: { [key: string]: GroupedGarment } = {};
+        for (const tshirt of customizableTshirts) {
+          if (tshirt.name) {
+            if (!groups[tshirt.name]) groups[tshirt.name] = { name: tshirt.name, type: tshirt.type || '', variants: [] };
+            groups[tshirt.name].variants.push(tshirt);
+          }
+        }
+        const groupedData = Object.values(groups);
+        setGroupedGarments(groupedData);
+        setPrints(allPrints);
+        setFilteredPrints(allPrints);
+        setCategories(allCategories);
+        if (groupedData.length > 0) {
+          setSelectedGroup(groupedData[0]);
+          setSelectedVariant(groupedData[0].variants[0]);
+        }
+      } catch (error) {
+        showNotification("Error al cargar los datos iniciales.", "error");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [showNotification]);
+
+
+  useEffect(() => {
+    const handleResize = () => {
+        if (stageContainerRef.current) {
+            const container = stageContainerRef.current;
+            const stageWidth = container.clientWidth;
+            const stageHeight = container.clientHeight;
+            setStageSize({ width: stageWidth, height: stageHeight });
+
+            if (tshirtImage) {
+                const ratio = Math.min((stageWidth * 0.9) / tshirtImage.width, (stageHeight * 0.9) / tshirtImage.height);
+                const imgWidth = tshirtImage.width * ratio;
+                const imgHeight = tshirtImage.height * ratio;
+
+                setTshirtImageSize({
+                    width: imgWidth,
+                    height: imgHeight,
+                    x: (stageWidth - imgWidth) / 2,
+                    y: (stageHeight - imgHeight) / 2,
+                });
+            }
+        }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [tshirtImage, isLoading]);
+
+
+  useEffect(() => {
+    if (selectedVariant) builder.setGarment(selectedVariant);
+  }, [selectedVariant, builder]);
+
+  useEffect(() => {
+    let result = prints;
+    if (printFilters.query) result = result.filter(p => p.title.toLowerCase().includes(printFilters.query.toLowerCase()));
+    if (printFilters.categoryId !== 'all') {
+      const cat = categories.find(c => c.id === Number(printFilters.categoryId));
+      if (cat) result = result.filter(p => p.category === cat.name);
     }
-    
-    const canvas = fabricCanvasRef.current;
-    updateGarmentImage(selectedColor.imageUrl, canvas);
-    builder.setGarment(selectedGarment);
+    setFilteredPrints(result);
+  }, [prints, printFilters, categories]);
 
-  }, [selectedColor, selectedGarment, updateGarmentImage, builder]);
+  const checkDeselect = (e: any) => {
+    const clickedOnEmpty = e.target === e.target.getStage();
+    if (clickedOnEmpty) selectShape(null);
+  };
 
-  const handleGarmentChange = (_: React.MouseEvent<HTMLElement>, newGarmentName: string | null) => {
-    if (newGarmentName) {
-      const newGarment = availableGarments.find(g => g.name === newGarmentName);
-      if (newGarment && newGarment.id !== selectedGarment.id) {
-        setSelectedGarment(newGarment);
-        setSelectedColor(newGarment.colors[0]);
+  const handleGroupChange = (_: React.MouseEvent<HTMLElement>, newGroupName: string | null) => {
+    if (newGroupName) {
+      const newGroup = groupedGarments.find(g => g.name === newGroupName);
+      if (newGroup && newGroup.variants.length > 0) {
+        setSelectedGroup(newGroup);
+        setSelectedVariant(newGroup.variants[0]);
+        builder.resetPrints();
+        setStamps([]);
       }
     }
   };
-
+  
   const handleAddPrint = (print: Print) => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    setSelectedPrints(prev => [...prev, print]);
     builder.addPrint(print);
+    const newStamp = {
+        src: print.image,
+        x: stageSize.width / 2 - 75,
+        y: stageSize.height / 2 - 75,
+        width: 150,
+        height: 150,
+        rotation: 0,
+        id: `stamp-${Date.now()}`
+    };
+    setStamps(prevStamps => [...prevStamps, newStamp]);
+  };
+  
+  const generateFinalImage = (): Promise<string> => {
+    const stage = stageRef.current;
+    if (!stage) return Promise.reject("El canvas no está listo");
+    
+    selectShape(null);
 
-    fabric.Image.fromURL(print.image, { crossOrigin: 'anonymous' }).then(img => {
-      img.scaleToWidth(150);
-      (canvas as any).centerObject(img);
-      canvas.add(img);
-      canvas.setActiveObject(img);
-      canvas.renderAll();
+    return new Promise(resolve => {
+        setTimeout(() => {
+            const dataURL = stage.toDataURL({
+                ...tshirtImageSize,
+                pixelRatio: 2
+            });
+            resolve(dataURL);
+        }, 100);
     });
   };
   
-  const handleAddToCart = () => {
-    builder.setSize(selectedSize).setQuantity(quantity);
-    const cartItem = builder.build();
-    if (cartItem) {
-      addProductToCart(cartItem);
-      alert('¡Tu diseño personalizado fue añadido al carrito!');
-      navigate('/checkout');
+  const handleSaveClick = () => {
+    if (isArtist) {
+        setDesignInfo({ name: '', description: '', price: '' });
+        setSaveDialogOpen(true);
+    } else {
+        handleFinalAction();
     }
   };
 
+  const handleFinalAction = async () => {
+    if (!user || !selectedVariant) { return; }
+
+    if(isArtist) setSaveDialogOpen(false);
+    
+    setIsSubmitting(true);
+    showNotification('Generando imagen final...', 'info');
+
+    try {
+      const dataUrl = await generateFinalImage();
+      const timestamp = Date.now();
+      const snapshotFile = dataURLtoFile(dataUrl, `design-snapshot-${timestamp}.png`);
+
+      showNotification('Subiendo imagen final...', 'info');
+      const finalImageUrl = await FirebaseFacade.uploadFile(snapshotFile, 'custom-design-previews/');
+
+      const productData = builder.setSize(selectedSize).setQuantity(quantity).build();
+      
+      const payload = {
+        name: isArtist ? designInfo.name : `Diseño Personalizado de ${user.name}`,
+        description: isArtist ? designInfo.description : "Diseño creado por cliente.",
+        price: isArtist ? Number(designInfo.price) : (productData.price / productData.quantity),
+        creator: { id: user.id },
+        product: { id: parseInt(productData.baseGarment.id) },
+        isPublic: isArtist,
+        previewImageUrl: finalImageUrl,
+        prints: productData.prints.map(p => ({ design: { id: parseInt(p.id) } })),
+      };
+
+      showNotification('Guardando diseño...', 'info');
+      const savedCustomDesign = await customDesignApi.create(payload);
+      if (!savedCustomDesign) throw new Error("No se pudo guardar el diseño personalizado.");
+
+      if (isArtist) {
+        showNotification('¡Tu diseño ha sido guardado para la venta!', 'success');
+        navigate('/artist/dashboard');
+      } else {
+        const cartItem: CustomCartItem = {
+          id: `custom-${savedCustomDesign.id}-${selectedSize}`,
+          type: 'custom',
+          customDesignId: savedCustomDesign.id,
+          size: selectedSize,
+          quantity: quantity,
+          price: savedCustomDesign.price * quantity,
+          unitPrice: savedCustomDesign.price,
+          displayData: {
+            name: savedCustomDesign.name,
+            image: savedCustomDesign.previewImageUrl,
+          }
+        };
+        addProductToCart(cartItem);
+        showNotification('¡Tu diseño personalizado fue añadido al carrito!', 'success');
+        navigate('/checkout');
+      }
+    } catch (error: any) {
+      console.error("Error al finalizar la acción:", error);
+      showNotification(error.message || 'Ocurrió un error inesperado.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return <CircularProgress sx={{ display: 'block', mx: 'auto', mt: 4 }} />;
+  }
+
   return (
     <Box>
-      <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>Personaliza tu Camiseta</Typography>
-      <Box display="grid" gap={4} gridTemplateColumns={{ xs: '1fr', md: '400px 1fr' }}>
-        <Box display="flex" flexDirection="column" gap={3}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="h6" gutterBottom>1. Escoge la prenda</Typography>
-            <ToggleButtonGroup value={selectedGarment.name} exclusive onChange={handleGarmentChange} fullWidth>
-              {availableGarments.map(garment => <ToggleButton key={garment.id} value={garment.name}>{garment.name}</ToggleButton>)}
-            </ToggleButtonGroup>
-          </Paper>
+      <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold', mb: 4 }}>
+        {isArtist ? "Crear un Nuevo Producto" : "Personaliza tu Camiseta"}
+      </Typography>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4 }}>
+        <Box sx={{ flex: '0 0 400px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper elevation={2} sx={{ p: 2, borderRadius: 3 }}>
+                <Typography variant="h6" gutterBottom>1. Escoge la Prenda y Color</Typography>
+                <ToggleButtonGroup value={selectedGroup?.name || ''} exclusive onChange={handleGroupChange} fullWidth orientation="vertical">
+                {groupedGarments.map(group => <ToggleButton key={group.name} value={group.name}>{group.name}</ToggleButton>)}
+                </ToggleButtonGroup>
+                {selectedGroup && (
+                <Box mt={2}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Color:</Typography>
+                    <Box display="flex" gap={1.5} flexWrap="wrap">
+                    {selectedGroup.variants.map(variant => (
+                        <Tooltip title={variant.color} key={variant.id}>
+                        <Box onClick={() => setSelectedVariant(variant)} sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: colorHexMap[variant.color!] || '#ccc', cursor: 'pointer', border: '3px solid', borderColor: selectedVariant?.id === variant.id ? 'primary.main' : 'transparent', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }} />
+                        </Tooltip>
+                    ))}
+                    </Box>
+                </Box>
+                )}
+            </Paper>
 
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="h6" gutterBottom>2. Escoge talla, color y cantidad</Typography>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Color:</Typography>
-            <Box display="flex" gap={1.5} flexWrap="wrap" mb={2}>
-              {selectedGarment.colors.map(colorOpt => (
-                <Tooltip title={colorOpt.name} key={colorOpt.value}>
-                  <Box onClick={() => handleColorChange(colorOpt.value)} sx={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: colorOpt.value, cursor: 'pointer', border: '2px solid', borderColor: selectedColor.value === colorOpt.value ? 'primary.main' : '#e0e0e0' }}/>
-                </Tooltip>
-              ))}
-            </Box>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Talla:</Typography>
-            <ToggleButtonGroup value={selectedSize} exclusive onChange={(_, newSize: TShirtSize | null) => { if (newSize) setSelectedSize(newSize); }} fullWidth sx={{ mb: 2 }}>
-              <ToggleButton value="S">S</ToggleButton><ToggleButton value="M">M</ToggleButton>
-              <ToggleButton value="L">L</ToggleButton><ToggleButton value="XL">XL</ToggleButton>
-            </ToggleButtonGroup>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Cantidad:</Typography>
-            <Box display="flex" alignItems="center" gap={2}>
-              <IconButton onClick={() => setQuantity(q => Math.max(1, q - 1))}><RemoveIcon /></IconButton>
-              <Typography variant="h6">{quantity}</Typography>
-              <IconButton onClick={() => setQuantity(q => q + 1)}><AddIcon /></IconButton>
-            </Box>
-          </Paper>
-
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="h6" gutterBottom>3. Escoge tus diseños</Typography>
-            {loadingPrints ? <Skeleton variant="rectangular" height={80} /> : (
-              <Box display="grid" gap={2} gridTemplateColumns="repeat(auto-fill, minmax(80px, 1fr))">
-                {prints.map(print => (
-                  <Tooltip key={print.id} title={`Añadir "${print.title}"`}>
-                    <Paper onClick={() => handleAddPrint(print)} elevation={0} sx={{ border: '1px solid #ddd', cursor: 'pointer', aspectRatio: '1 / 1', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
-                      <img src={print.image} alt={print.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}/>
-                    </Paper>
-                  </Tooltip>
-                ))}
-              </Box>
+            {/* --- LÓGICA CONDICIONAL PARA OCULTAR TALLA Y CANTIDAD --- */}
+            {!isArtist && (
+                <Paper elevation={2} sx={{ p: 2, borderRadius: 3 }}>
+                    <Typography variant="h6" gutterBottom>2. Elige Talla y Cantidad</Typography>
+                    <ToggleButtonGroup value={selectedSize} exclusive onChange={(_, v) => { if (v) setSelectedSize(v as TShirtSize); }} fullWidth sx={{ mb: 2 }}>
+                    <ToggleButton value="S">S</ToggleButton><ToggleButton value="M">M</ToggleButton><ToggleButton value="L">L</ToggleButton><ToggleButton value="XL">XL</ToggleButton>
+                    </ToggleButtonGroup>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Cantidad:</Typography>
+                    <Box display="flex" alignItems="center" gap={2}>
+                    <IconButton onClick={() => setQuantity(q => Math.max(1, q - 1))}><RemoveIcon /></IconButton>
+                    <Typography variant="h6">{quantity}</Typography>
+                    <IconButton onClick={() => setQuantity(q => q + 1)}><AddIcon /></IconButton>
+                    </Box>
+                </Paper>
             )}
-          </Paper>
+
+            <Paper elevation={2} sx={{ p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                <Typography variant="h6" gutterBottom>3. Añade Estampas</Typography>
+                <Box display="flex" gap={2} mb={2}>
+                <TextField label="Buscar..." variant="outlined" size="small" fullWidth onChange={e => setPrintFilters(f => ({ ...f, query: e.target.value }))} />
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Categoría</InputLabel>
+                    <Select value={printFilters.categoryId} label="Categoría" onChange={e => setPrintFilters(f => ({ ...f, categoryId: e.target.value }))}>
+                    <MenuItem value="all">Todas</MenuItem>
+                    {categories.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>)}
+                    </Select>
+                </FormControl>
+                </Box>
+                <Box sx={{ overflowY: 'auto', flexGrow: 1, pr: 1, minHeight: '200px' }}>
+                <Box display="grid" gap={2} gridTemplateColumns="repeat(auto-fill, minmax(80px, 1fr))">
+                    {filteredPrints.map(print => (
+                    <Tooltip key={print.id} title={`Añadir "${print.title}"`}>
+                        <Paper onClick={() => handleAddPrint(print)} elevation={0} sx={{ border: '1px solid #ddd', cursor: 'pointer', aspectRatio: '1 / 1', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
+                        <img src={print.image} alt={print.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }} />
+                        </Paper>
+                    </Tooltip>
+                    ))}
+                </Box>
+                </Box>
+            </Paper>
+            <Button 
+                variant="contained" 
+                size="large" 
+                fullWidth 
+                startIcon={isArtist ? <SaveIcon /> : <ShoppingCartIcon />} 
+                onClick={handleSaveClick}
+                disabled={isSubmitting}
+            >
+                {isSubmitting ? <CircularProgress size={24} /> : isArtist ? "Guardar Diseño para la Venta" : "Agregar al Carrito"}
+            </Button>
         </Box>
 
-        <Box sx={{ position: 'sticky', top: '2rem' }}>
-          <Paper ref={canvasContainerRef} elevation={2} sx={{ p: 2, borderRadius: 3, overflow: 'hidden' }}>
-            <Typography variant="h6" gutterBottom align="center">Previsualización</Typography>
-            <canvas ref={canvasRef} />
+        <Box sx={{ flex: '1 1 auto', minHeight: { xs: '60vh', md: '80vh' } }}>
+          <Paper
+            ref={stageContainerRef}
+            sx={{ height: '100%', width: '100%', borderRadius: 3, overflow: 'hidden', background: '#f0f0f0' }}
+          >
+            <Stage
+                width={stageSize.width}
+                height={stageSize.height}
+                onMouseDown={checkDeselect}
+                onTouchStart={checkDeselect}
+                ref={stageRef}
+            >
+                <Layer listening={false}>
+                    <KonvaImage
+                        image={tshirtImage}
+                        {...tshirtImageSize}
+                        listening={false}
+                    />
+                </Layer>
+                <Layer>
+                    {stamps.map((stamp, i) => (
+                        <StampImage
+                            key={i}
+                            shapeProps={stamp}
+                            isSelected={stamp.id === selectedId}
+                            onSelect={() => selectShape(stamp.id)}
+                            onChange={(newAttrs: any) => {
+                                const newStamps = stamps.slice();
+                                newStamps[i] = newAttrs;
+                                setStamps(newStamps);
+                            }}
+                        />
+                    ))}
+                </Layer>
+            </Stage>
           </Paper>
-          <Paper elevation={2} sx={{ p: 2, mt: 2, borderRadius: 3 }}>
-            <Typography variant="h6">Precio Total Estimado</Typography>
-            <Typography variant="h4" fontWeight="bold">{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(totalPrice)}</Typography>
-          </Paper>
-          <Button variant="contained" size="large" fullWidth startIcon={<ShoppingCartIcon />} onClick={handleAddToCart} sx={{ mt: 2, py: 1.5, backgroundColor: '#6C5CF0', '&:hover': { backgroundColor: '#5a4dbb' } }}>
-            Agregar al carrito
-          </Button>
         </Box>
       </Box>
+
+      <Dialog open={isSaveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
+        <DialogTitle>Guardar Nuevo Producto</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{mb: 2}}>
+            Dale un nombre y precio a tu nueva creación para que aparezca en la tienda.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            required
+            margin="dense"
+            id="name"
+            label="Nombre del Producto"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={designInfo.name}
+            onChange={(e) => setDesignInfo({...designInfo, name: e.target.value})}
+          />
+          <TextField
+            margin="dense"
+            id="description"
+            label="Descripción Corta (Opcional)"
+            type="text"
+            fullWidth
+            multiline
+            rows={2}
+            variant="outlined"
+            value={designInfo.description}
+            onChange={(e) => setDesignInfo({...designInfo, description: e.target.value})}
+          />
+          <TextField
+            required
+            margin="dense"
+            id="price"
+            label="Precio de Venta (COP)"
+            type="number"
+            fullWidth
+            variant="outlined"
+            value={designInfo.price}
+            onChange={(e) => setDesignInfo({...designInfo, price: e.target.value})}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveDialogOpen(false)}>Cancelar</Button>
+          <Button 
+            onClick={handleFinalAction} 
+            variant="contained"
+            disabled={!designInfo.name || !designInfo.price}
+          >
+            Confirmar y Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

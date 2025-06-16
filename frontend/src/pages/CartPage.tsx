@@ -1,101 +1,113 @@
 // src/pages/CartPage.tsx
-import { Box, Typography, Button, Paper, IconButton, Divider } from '@mui/material'; // Grid ya no se importa
+import { Box, Typography, Button, Paper, IconButton, Divider } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { useCartStore } from '../store/cartStore';
-import type { PredesignedCartItem } from '../models/CartItem';
+import { useAuth } from '../auth/useAuth';
+import orderApi from '../api/orderApi';
+import { useNotificationStore } from '../store/notificationStore';
+import type { CartItem } from '../models/CartItem';
 
 const CartPage = () => {
+  const { user } = useAuth();
   const { items, removeProduct, updateQuantity, clearCart } = useCartStore();
+  const showNotification = useNotificationStore(state => state.showNotification);
   
-  const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const numeroTienda = '573001234567';
+  const subtotal = items.reduce((total, item) => total + item.price, 0);
+  const numeroTienda = import.meta.env.VITE_WHATSAPP_NUMBER || '573001234567'; // Fallback por si no está la variable
 
   const formatPrice = (price: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(price);
 
   const generarMensajeWhatsApp = () => {
-    let mensaje = '¡Hola! Quisiera hacer el siguiente pedido:\n\n';
+    let mensaje = '¡Hola! Quisiera confirmar el siguiente pedido:\n\n';
     items.forEach(item => {
-      switch (item.type) {
-        case 'predesigned':
-          mensaje += `*${item.product.title}*\n`;
-          mensaje += `  - Talla: ${item.size}\n`;
-          mensaje += `  - Cantidad: ${item.quantity}\n`;
-          mensaje += `  - Subtotal: ${formatPrice(item.price * item.quantity)}\n\n`;
-          break;
-        case 'custom':
-          // Futura lógica para items personalizados
-          break;
-      }
+      // Usamos directamente item.displayData.name que ahora es universal
+      mensaje += `*${item.displayData.name}*\n`;
+      mensaje += `  - Talla: ${item.size}\n`;
+      mensaje += `  - Cantidad: ${item.quantity}\n`;
+      mensaje += `  - Subtotal: ${formatPrice(item.price)}\n\n`;
     });
     mensaje += `*TOTAL DEL PEDIDO: ${formatPrice(subtotal)}*`;
     return encodeURIComponent(mensaje);
   };
   
+  const handleCheckout = async () => {
+    if (!user) {
+      showNotification("Debes iniciar sesión para realizar un pedido.", "warning");
+      return;
+    }
+    if (items.length === 0) return;
+
+    const orderPayload = {
+      user: { id: user.id },
+      customerName: user.name,
+      customerEmail: user.email,
+      customerPhone: 'N/A', // Puedes añadir este campo al perfil de usuario si quieres
+      notes: "Pedido generado desde la web.",
+      items: items.map(item => ({
+        customDesign: { id: item.customDesignId },
+        quantity: item.quantity,
+        size: item.size,
+      })),
+    };
+    
+    try {
+      const createdOrder = await orderApi.createFromCart(orderPayload);
+      const whatsappUrl = `https://wa.me/${numeroTienda}?text=${generarMensajeWhatsApp()}\n\nRef. Pedido: ${createdOrder.id}`;
+      window.open(whatsappUrl, '_blank');
+      clearCart();
+      showNotification('Pedido enviado. Serás redirigido a WhatsApp.', 'success');
+    } catch (error) {
+      showNotification('No se pudo procesar el pedido. Inténtalo de nuevo.', 'error');
+    }
+  };
+
+  // --- LÓGICA DE RENDERIZADO SIMPLIFICADA ---
+  const renderCartItem = (item: CartItem) => {
+    // Ya no se necesita un 'switch' para la visualización,
+    // porque todos los items tienen displayData.name y displayData.image
+    return (
+      <Paper key={item.id} elevation={2} sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2, borderRadius: 3 }}>
+        <img src={item.displayData.image} alt={item.displayData.name} width="100" style={{ marginRight: '16px', borderRadius: '8px', objectFit: 'cover' }}/>
+        <Box flexGrow={1}>
+          <Typography variant="h6">{item.displayData.name}</Typography>
+          <Typography color="text.secondary">Talla: {item.size}</Typography>
+          <Typography fontWeight="bold">{formatPrice(item.price)}</Typography>
+        </Box>
+        <Box display="flex" alignItems="center" gap={1}>
+          <IconButton size="small" onClick={() => updateQuantity(item.id, 'decrease')}><RemoveIcon/></IconButton>
+          <Typography>{item.quantity}</Typography>
+          <IconButton size="small" onClick={() => updateQuantity(item.id, 'increase')}><AddIcon/></IconButton>
+        </Box>
+        <IconButton edge="end" sx={{ ml: 2 }} onClick={() => removeProduct(item.id)}>
+          <DeleteIcon />
+        </IconButton>
+      </Paper>
+    );
+  }
+  
   if (items.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 8 }}>
         <Typography variant="h4" gutterBottom>Tu carrito está vacío</Typography>
-        <Button component={RouterLink} to="/tshirts" variant="contained">
-          Explorar camisetas
+        <Button component={RouterLink} to="/customize" variant="contained">
+          ¡Crea un diseño!
         </Button>
       </Box>
     );
   }
-
+  
   return (
     <Box>
-      <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-        Tu Carrito de Compras
-      </Typography>
-
-      {/* --- REEMPLAZO DEL GRID AQUÍ --- */}
-      <Box 
-        display="grid"
-        gap={4}
-        gridTemplateColumns={{
-          xs: '1fr', // En móviles, una sola columna
-          md: '2fr 1fr'  // En escritorio, 2/3 para la lista y 1/3 para el resumen
-        }}
-      >
-        {/* Columna Izquierda: Lista de Items */}
-        <Box>
-          {items.map(item => (
-            <Paper key={item.id} elevation={2} sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2, borderRadius: 3 }}>
-              <img src={(item as PredesignedCartItem).product.image} alt={(item as PredesignedCartItem).product.title} width="100" style={{ marginRight: '16px', borderRadius: '8px' }}/>
-              <Box flexGrow={1}>
-                <Typography variant="h6">{(item as PredesignedCartItem).product.title}</Typography>
-                <Typography color="text.secondary">Talla: {item.size}</Typography>
-                <Typography fontWeight="bold">{formatPrice(item.price)}</Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={1}>
-                <IconButton size="small" onClick={() => updateQuantity(item.id, 'decrease')}><RemoveIcon/></IconButton>
-                <Typography>{item.quantity}</Typography>
-                <IconButton size="small" onClick={() => updateQuantity(item.id, 'increase')}><AddIcon/></IconButton>
-              </Box>
-              <IconButton edge="end" sx={{ ml: 2 }} onClick={() => removeProduct(item.id)}>
-                <DeleteIcon />
-              </IconButton>
-            </Paper>
-          ))}
-        </Box>
-
-        {/* Columna Derecha: Resumen del Pedido */}
+      <Typography variant="h3" component="h1" gutterBottom>Tu Carrito de Compras</Typography>
+      <Box display="grid" gap={4} gridTemplateColumns={{ xs: '1fr', md: '2fr 1fr' }}>
+        <Box>{items.map(item => renderCartItem(item))}</Box>
         <Box>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 3, position: 'sticky', top: '2rem' }}>
             <Typography variant="h5" gutterBottom>Resumen del Pedido</Typography>
-            <Divider sx={{ my: 2 }} />
-            <Box display="flex" justifyContent="space-between" mb={2}>
-              <Typography>Subtotal</Typography>
-              <Typography fontWeight="bold">{formatPrice(subtotal)}</Typography>
-            </Box>
-            <Box display="flex" justifyContent="space-between" mb={2}>
-              <Typography>Envío</Typography>
-              <Typography>A convenir</Typography>
-            </Box>
             <Divider sx={{ my: 2 }} />
             <Box display="flex" justifyContent="space-between" mb={3}>
               <Typography variant="h6">Total</Typography>
@@ -104,13 +116,12 @@ const CartPage = () => {
             <Button
               variant="contained" fullWidth size="large"
               startIcon={<WhatsAppIcon />}
-              href={`https://wa.me/${numeroTienda}?text=${generarMensajeWhatsApp()}`}
-              target="_blank"
+              onClick={handleCheckout}
               sx={{ backgroundColor: '#25D366', '&:hover': { backgroundColor: '#1EAE50' }, py: 1.5 }}
             >
               Comprar vía WhatsApp
             </Button>
-            <Button fullWidth onClick={clearCart} sx={{ mt: 2 }}>Vaciar Carrito</Button>
+            <Button fullWidth onClick={() => clearCart()} sx={{ mt: 2 }}>Vaciar Carrito</Button>
           </Paper>
         </Box>
       </Box>

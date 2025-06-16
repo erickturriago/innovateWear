@@ -34,13 +34,25 @@ const designApi = {
     }
   },
   
+  // CORRECCIÓN DE RUTA
   getByArtistId: async (artistId: number): Promise<Print[]> => {
     try {
-      const response = await httpClient.get(`/designs/artist/${artistId}`);
+      const response = await httpClient.get(`/designs/by-artist/${artistId}`);
       return response.data.map(mapApiToPrint);
     } catch (error) {
       console.error(`Error fetching designs for artist ${artistId}:`, error);
       return [];
+    }
+  },
+
+  // NUEVO MÉTODO ALINEADO CON EL BACKEND
+  getById: async (id: string): Promise<Print | null> => {
+    try {
+      const response = await httpClient.get(`/designs/detail/${id}`);
+      return mapApiToPrint(response.data);
+    } catch (error) {
+      console.error(`Error fetching design with id ${id}:`, error);
+      return null;
     }
   },
 
@@ -78,16 +90,6 @@ const designApi = {
       return true;
     } catch (error) {
       console.error(`Error deleting design ${id}:`, error);
-      return false;
-    }
-  },
-  
-  deletePermanently: async (id: string): Promise<boolean> => {
-    try {
-      await httpClient.delete(`/designs/${id}/permanent`);
-      return true;
-    } catch (error) {
-      console.error(`Error permanently deleting design ${id}:`, error);
       return false;
     }
   },
