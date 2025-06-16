@@ -14,5 +14,7 @@ public interface CustomDesignRepository extends JpaRepository<CustomDesign, Long
 
     List<CustomDesign> findByCreatorIdAndActiveTrue(Long creatorId);
 
+    List<CustomDesign> findByCreatorId(Long creatorId);
+
     Optional<CustomDesign> findByIdAndActiveTrue(Long id);
 }

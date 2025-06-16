@@ -70,55 +70,27 @@ public class DesignService {
     
     // Actualizar diseño existente
     public Design updateDesign(Long id, Design designDetails) {
-        Optional<Design> optionalDesign = designRepository.findById(id);
+        Design existingDesign = designRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Diseño no encontrado con ID: " + id));
 
-        if (optionalDesign.isPresent()) {
-            Design existingDesign = optionalDesign.get();
+        if (designDetails.getName() != null) existingDesign.setName(designDetails.getName());
+        if (designDetails.getDescription() != null) existingDesign.setDescription(designDetails.getDescription());
+        if (designDetails.getPrice() != null) existingDesign.setPrice(designDetails.getPrice());
+        if (designDetails.getImageUrl() != null) existingDesign.setImageUrl(designDetails.getImageUrl());
+        if (designDetails.getActive() != null) existingDesign.setActive(designDetails.getActive());
 
-            if (designDetails.getName() != null) {
-                existingDesign.setName(designDetails.getName());
-            }
-
-            if (designDetails.getDescription() != null) {
-                existingDesign.setDescription(designDetails.getDescription());
-            }
-
-            if (designDetails.getPrice() != null) {
-                existingDesign.setPrice(designDetails.getPrice());
-            }
-
-            if (designDetails.getImageUrl() != null) {
-                existingDesign.setImageUrl(designDetails.getImageUrl());
-            }
-
-            if (designDetails.getActive() != null) {
-                existingDesign.setActive(designDetails.getActive());
-            }
-
-            // Actualizar categoría si se proporciona
-            if (designDetails.getCategory() != null && designDetails.getCategory().getId() != null) {
-                Optional<DesignCategory> category = designCategoryRepository.findById(designDetails.getCategory().getId());
-                if (category.isPresent() && category.get().getActive()) {
-                    existingDesign.setCategory(category.get());
-                } else {
-                    throw new RuntimeException("Categoría no encontrada o inactiva");
-                }
-            }
-
-            // Actualizar artista si se proporciona
-            if (designDetails.getArtist() != null && designDetails.getArtist().getId() != null) {
-                Optional<User> artist = userRepository.findById(designDetails.getArtist().getId());
-                if (artist.isPresent() && artist.get().getActive()) {
-                    existingDesign.setArtist(artist.get());
-                } else {
-                    throw new RuntimeException("Artista no encontrado o inactivo");
-                }
-            }
-
-            return designRepository.save(existingDesign);
+        if (designDetails.getCategory() != null && designDetails.getCategory().getId() != null) {
+            DesignCategory category = designCategoryRepository.findById(designDetails.getCategory().getId())
+                    .orElseThrow(() -> new RuntimeException("Categoría no encontrada o inactiva"));
+            existingDesign.setCategory(category);
+        }
+        if (designDetails.getArtist() != null && designDetails.getArtist().getId() != null) {
+            User artist = userRepository.findById(designDetails.getArtist().getId())
+                    .orElseThrow(() -> new RuntimeException("Artista no encontrado o inactivo"));
+            existingDesign.setArtist(artist);
         }
 
-        throw new RuntimeException("Diseño no encontrado con ID: " + id);
+        return designRepository.save(existingDesign);
     }
     
     // Desactivar diseño (borrado lógico)

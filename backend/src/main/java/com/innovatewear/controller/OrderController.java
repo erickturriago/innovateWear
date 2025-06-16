@@ -3,6 +3,7 @@ package com.innovatewear.controller;
 import com.innovatewear.entity.Order;
 import com.innovatewear.service.OrderService;
 import com.innovatewear.utils.JsonPrinter;
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,5 +52,21 @@ public class OrderController {
                     LOGGER.warn("Orden con ID {} no encontrada.", id);
                     return ResponseEntity.notFound().build();
                 });
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Order> updateOrderStatus(@PathVariable Long id, @RequestBody String newStatus) {
+        LOGGER.info("Admin request para actualizar estado del pedido {} a {}", id, newStatus);
+        try {
+            // Se corrige el tipo de 'OrderStatus' a 'Order.OrderStatus'
+            Order.OrderStatus status = Order.OrderStatus.valueOf(newStatus.toUpperCase());
+            Order updatedOrder = orderService.updateOrderStatus(id, status);
+            return ResponseEntity.ok(updatedOrder);
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("Estado inválido proporcionado: {}", newStatus);
+            return ResponseEntity.badRequest().build();
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

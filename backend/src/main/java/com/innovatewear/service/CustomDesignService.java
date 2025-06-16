@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -29,7 +28,7 @@ public class CustomDesignService {
     @Autowired
     private DesignRepository designRepository;
     @Autowired
-    private CustomDesignPrintRepository customDesignPrintRepository; // Inyección necesaria
+    private CustomDesignPrintRepository customDesignPrintRepository;
 
     public CustomDesign createCustomDesign(CustomDesign designFromRequest) {
         User creator = userRepository.findById(designFromRequest.getCreator().getId())
@@ -46,6 +45,7 @@ public class CustomDesignService {
         newDesign.setPrice(designFromRequest.getPrice());
         newDesign.setIsPublic(designFromRequest.getIsPublic());
         newDesign.setPreviewImageUrl(designFromRequest.getPreviewImageUrl());
+        newDesign.setActive(true);
 
         CustomDesign savedDesign = customDesignRepository.save(newDesign);
 
@@ -65,10 +65,12 @@ public class CustomDesignService {
         return savedDesign;
     }
 
+    // Se modifica para que la comprobación de propiedad se haga en el controller
     public CustomDesign updateCustomDesign(Long id, CustomDesign designDetails) {
         CustomDesign existingDesign = customDesignRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Diseño personalizado no encontrado con ID: " + id));
 
+        // Lógica de actualización parcial para solo cambiar los campos que llegan
         if (designDetails.getName() != null) {
             existingDesign.setName(designDetails.getName());
         }
@@ -80,9 +82,6 @@ public class CustomDesignService {
         }
         if (designDetails.getIsPublic() != null) {
             existingDesign.setIsPublic(designDetails.getIsPublic());
-        }
-        if (designDetails.getPreviewImageUrl() != null) {
-            existingDesign.setPreviewImageUrl(designDetails.getPreviewImageUrl());
         }
         if (designDetails.getActive() != null) {
             existingDesign.setActive(designDetails.getActive());
@@ -107,8 +106,28 @@ public class CustomDesignService {
         return customDesignRepository.findByIsPublicTrueAndActiveTrue();
     }
 
+    public CustomDesign togglePublicStatus(Long designId) {
+        CustomDesign design = customDesignRepository.findById(designId)
+                .orElseThrow(() -> new EntityNotFoundException("Diseño no encontrado con ID: " + designId));
+        design.setIsPublic(!design.getIsPublic());
+        return customDesignRepository.save(design);
+    }
+
+    // Se modifica para usar el nuevo método del repositorio
     public List<CustomDesign> getCustomDesignsByCreator(Long creatorId) {
-        return customDesignRepository.findByCreatorIdAndActiveTrue(creatorId);
+        // Ahora devuelve TODOS los diseños del creador, activos o inactivos.
+        return customDesignRepository.findByCreatorId(creatorId);
+    }
+
+    public List<CustomDesign> getAllCustomDesigns() {
+        return customDesignRepository.findAll();
+    }
+
+    public CustomDesign toggleActivation(Long designId) {
+        CustomDesign design = customDesignRepository.findById(designId)
+                .orElseThrow(() -> new EntityNotFoundException("Diseño no encontrado con ID: " + designId));
+        design.setActive(!design.getActive());
+        return customDesignRepository.save(design);
     }
 
     public Optional<CustomDesign> getActiveCustomDesignById(Long id) {

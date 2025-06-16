@@ -42,25 +42,42 @@ public class ProductService {
     
     // Actualizar producto existente
     public Product updateProduct(Long id, Product productDetails) {
-        Optional<Product> optionalProduct = productRepository.findById(id);
-        
-        if (optionalProduct.isPresent()) {
-            Product existingProduct = optionalProduct.get();
-            
+        Product existingProduct = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + id));
+
+        // --- LÓGICA DE ACTUALIZACIÓN PARCIAL ---
+        if (productDetails.getName() != null) {
             existingProduct.setName(productDetails.getName());
-            existingProduct.setDescription(productDetails.getDescription());
-            existingProduct.setPrice(productDetails.getPrice());
-            existingProduct.setType(productDetails.getType());
-            existingProduct.setSize(productDetails.getSize());
-            existingProduct.setColor(productDetails.getColor());
-            existingProduct.setMaterial(productDetails.getMaterial());
-            existingProduct.setCustomizable(productDetails.getCustomizable());
-            existingProduct.setActive(productDetails.getActive());
-            
-            return productRepository.save(existingProduct);
         }
-        
-        throw new RuntimeException("Producto no encontrado con ID: " + id);
+        if (productDetails.getDescription() != null) {
+            existingProduct.setDescription(productDetails.getDescription());
+        }
+        if (productDetails.getPrice() != null) {
+            existingProduct.setPrice(productDetails.getPrice());
+        }
+        if (productDetails.getType() != null) {
+            existingProduct.setType(productDetails.getType());
+        }
+        if (productDetails.getSize() != null) {
+            existingProduct.setSize(productDetails.getSize());
+        }
+        if (productDetails.getColor() != null) {
+            existingProduct.setColor(productDetails.getColor());
+        }
+        if (productDetails.getMaterial() != null) {
+            existingProduct.setMaterial(productDetails.getMaterial());
+        }
+        if (productDetails.getLink() != null) {
+            existingProduct.setLink(productDetails.getLink());
+        }
+        if (productDetails.getCustomizable() != null) {
+            existingProduct.setCustomizable(productDetails.getCustomizable());
+        }
+        if (productDetails.getActive() != null) {
+            existingProduct.setActive(productDetails.getActive());
+        }
+
+        return productRepository.save(existingProduct);
     }
     
     // Eliminar producto (borrado lógico)

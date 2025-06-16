@@ -84,4 +84,11 @@ public class OrderService {
     public Optional<Order> getOrderById(Long id) {
         return orderRepository.findById(id);
     }
+
+    public Order updateOrderStatus(Long orderId, Order.OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Pedido no encontrado con ID: " + orderId));
+        order.setStatus(newStatus);
+        return orderRepository.save(order);
+    }
 }

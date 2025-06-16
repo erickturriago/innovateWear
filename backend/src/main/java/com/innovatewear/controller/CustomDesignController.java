@@ -3,6 +3,7 @@ package com.innovatewear.controller;
 import com.innovatewear.entity.CustomDesign;
 import com.innovatewear.service.CustomDesignService;
 import com.innovatewear.utils.JsonPrinter;
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,14 +40,15 @@ public class CustomDesignController {
     public ResponseEntity<CustomDesign> updateCustomDesign(@PathVariable Long id, @RequestBody CustomDesign customDesignDetails) {
         LOGGER.info("Request para actualizar CustomDesign con ID {}: {}", id, JsonPrinter.toString(customDesignDetails));
         try {
+            // Se elimina la lógica de extracción del creator.id que causaba el error
             CustomDesign updatedDesign = customDesignService.updateCustomDesign(id, customDesignDetails);
             return ResponseEntity.ok(updatedDesign);
-        } catch (SecurityException e) {
-            LOGGER.warn("Acceso denegado al actualizar CustomDesign con ID {}: {}", id, e.getMessage());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        } catch (Exception e) {
-            LOGGER.error("Error al actualizar CustomDesign con ID {}: " + e.getMessage(), e);
+        } catch (EntityNotFoundException e) {
+            LOGGER.error("Diseño no encontrado con ID {}: {}", id, e.getMessage());
             return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            LOGGER.error("Error inesperado al actualizar CustomDesign con ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -77,6 +79,17 @@ public class CustomDesignController {
         return ResponseEntity.ok(designs);
     }
 
+    @PutMapping("/{id}/toggle-public")
+    public ResponseEntity<CustomDesign> togglePublicStatus(@PathVariable Long id) {
+        LOGGER.info("Admin request para cambiar estado público del CustomDesign con ID {}", id);
+        try {
+            CustomDesign updatedDesign = customDesignService.togglePublicStatus(id);
+            return ResponseEntity.ok(updatedDesign);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping("/detail/{id}")
     public ResponseEntity<CustomDesign> getCustomDesignById(@PathVariable Long id) {
         LOGGER.info("Request para obtener CustomDesign con ID {}", id);
@@ -86,5 +99,23 @@ public class CustomDesignController {
                     LOGGER.warn("CustomDesign con ID {} no encontrado.", id);
                     return ResponseEntity.notFound().build();
                 });
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<CustomDesign>> getAllCustomDesigns() {
+        LOGGER.info("Admin request para obtener TODOS los CustomDesigns");
+        List<CustomDesign> designs = customDesignService.getAllCustomDesigns();
+        return ResponseEntity.ok(designs);
+    }
+
+    @PutMapping("/{id}/toggle-activation")
+    public ResponseEntity<CustomDesign> toggleActivation(@PathVariable Long id) {
+        LOGGER.info("Admin request para cambiar estado de activación del CustomDesign con ID {}", id);
+        try {
+            CustomDesign updatedDesign = customDesignService.toggleActivation(id);
+            return ResponseEntity.ok(updatedDesign);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
