@@ -2,6 +2,7 @@
 import { Container, Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
+import { GlobalSnackbar } from './ui/GlobalSnackbar';
 import type { ReactNode } from 'react';
 
 interface LayoutProps {
@@ -18,6 +19,7 @@ const Layout = ({ children }: LayoutProps) => {
         </Container>
       </Box>
       <Footer />
+      <GlobalSnackbar />
     </Box>
   );
 };

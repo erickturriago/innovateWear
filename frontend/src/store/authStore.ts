@@ -3,16 +3,16 @@ import { create } from 'zustand';
 import { persist, PersistOptions } from 'zustand/middleware';
 import type { User } from '../models/User';
 import { UserFactory } from '../patterns/factory/UserFactory';
+import { FirebaseFacade } from '../patterns/facade/FirebaseFacade'; // Importar facade
 
-// La interfaz ahora es más simple. Solo define el estado.
 export interface AuthState {
   user: User | null;
   isLoading: boolean;
-  // La acción ahora es 'setUser', que será llamada desde App.tsx
   setUser: (user: User | null) => void;
+  // --- NUEVA ACCIÓN DE LOGOUT ---
+  logout: () => Promise<void>; 
 }
 
-// La función 'merge' sigue siendo necesaria para rehidratar los métodos de la clase User
 const mergeState: PersistOptions<AuthState>['merge'] = (persistedState, currentState) => {
   if (typeof persistedState !== 'object' || persistedState === null) {
     return currentState;
@@ -29,12 +29,21 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      isLoading: true, // Se inicia en true hasta que Firebase verifique el estado inicial
+      isLoading: true,
       
-      // Esta es la ÚNICA acción que modifica el estado.
-      // Ya no hay lógica de login/logout aquí.
       setUser: (user) => {
         set({ user, isLoading: false });
+      },
+
+      // --- IMPLEMENTACIÓN DE LOGOUT ---
+      logout: async () => {
+        try {
+            await FirebaseFacade.signOut(); // Cierra sesión en Firebase
+        } catch (error) {
+            console.error("Error al cerrar sesión en Firebase:", error);
+        }
+        // Limpia el estado local inmediatamente para una respuesta de UI instantánea
+        set({ user: null, isLoading: false }); 
       },
     }),
     {

@@ -7,9 +7,13 @@ import {
   signInWithEmailAndPassword,
   type User as FirebaseUser
 } from "firebase/auth";
-import { auth, googleProvider } from "../../firebase/firebaseConfig";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, googleProvider, app } from "../../firebase/firebaseConfig";
 
-// La Facade simplifica la interacción con el subsistema de autenticación de Firebase.
+// Inicializamos el servicio de Storage
+const storage = getStorage(app);
+
+// La Facade simplifica la interacción con los subsistemas de Firebase.
 export const FirebaseFacade = {
   signInWithGoogle: async (): Promise<FirebaseUser | null> => {
     try {
@@ -23,21 +27,21 @@ export const FirebaseFacade = {
 
   signInWithEmail: async (email: string, pass: string): Promise<FirebaseUser | null> => {
     try {
-        const result = await signInWithEmailAndPassword(auth, email, pass);
-        return result.user;
+      const result = await signInWithEmailAndPassword(auth, email, pass);
+      return result.user;
     } catch (error) {
-        console.error("Error durante el inicio de sesión con Email:", error);
-        return null;
+      console.error("Error durante el inicio de sesión con Email:", error);
+      return null;
     }
   },
   
   signUpWithEmail: async (email: string, pass: string): Promise<FirebaseUser | null> => {
     try {
-        const result = await createUserWithEmailAndPassword(auth, email, pass);
-        return result.user;
+      const result = await createUserWithEmailAndPassword(auth, email, pass);
+      return result.user;
     } catch(error) {
-        console.error("Error durante el registro con Email:", error);
-        return null;
+      console.error("Error durante el registro con Email:", error);
+      return null;
     }
   },
 
@@ -47,5 +51,26 @@ export const FirebaseFacade = {
 
   onAuthStateChanged: (callback: (user: FirebaseUser | null) => void) => {
     return onAuthStateChanged(auth, callback);
+  },
+
+  /**
+   * --- MÉTODO AÑADIDO ---
+   * Sube un archivo a Firebase Storage y devuelve la URL de descarga.
+   * @param file El archivo a subir.
+   * @param path La ruta en el storage (ej: 'designs/').
+   * @returns La URL pública del archivo subido.
+   */
+  uploadFile: async (file: File, path: string): Promise<string> => {
+    try {
+      const timestamp = Date.now();
+      const fileRef = ref(storage, `${path}${timestamp}-${file.name}`);
+      const snapshot = await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      console.log('Archivo subido con éxito:', downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.error("Error al subir el archivo:", error);
+      throw error;
+    }
   },
 };

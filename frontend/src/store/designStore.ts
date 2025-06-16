@@ -8,22 +8,35 @@ interface DesignState {
   isLoading: boolean;
   fetchDesignsByArtist: (artistId: number) => Promise<void>;
   addDesign: (design: Print) => void;
+  updateDesign: (id: string, updatedDesign: Print) => void;
+  removeDesign: (designId: string) => void;
 }
 
-export const useDesignStore = create<DesignState>((set, get) => ({
+export const useDesignStore = create<DesignState>((set) => ({
   designs: [],
   isLoading: false,
 
-  fetchDesignsByArtist: async (artistId) => {
+  fetchDesignsByArtist: async (artistId: number) => {
     set({ isLoading: true });
     const designs = await designApi.getByArtistId(artistId);
     set({ designs, isLoading: false });
   },
 
   addDesign: (design) => {
-    // Añade el nuevo diseño al estado existente sin hacer otra llamada a la API
     set((state) => ({
       designs: [design, ...state.designs],
+    }));
+  },
+  
+  updateDesign: (id, updatedDesign) => {
+    set((state) => ({
+      designs: state.designs.map(d => (d.id === id ? updatedDesign : d)),
+    }));
+  },
+
+  removeDesign: (designId) => {
+    set((state) => ({
+      designs: state.designs.filter(d => d.id !== designId),
     }));
   },
 }));

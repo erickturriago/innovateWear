@@ -1,14 +1,13 @@
 // src/pages/PrintsPage.tsx
 import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Alert, Skeleton, Paper, TextField, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
-import PrintCard from '../components/PrintCard';
-import printApi from '../api/designApi';
+import PrintCard from '../components/ui/PrintCard'; // Usamos la versión más completa de PrintCard
+import designApi from '../api/designApi';
 import type { Print } from '../models/Print';
 
 const PrintsPage = () => {
   const [allPrints, setAllPrints] = useState<Print[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  // Estado para la opción de ordenamiento
   const [sortOption, setSortOption] = useState('default');
   
   const [loading, setLoading] = useState(true);
@@ -18,8 +17,10 @@ const PrintsPage = () => {
     const loadPrints = async () => {
       try {
         setLoading(true);
-        const printsData = await printApi.getAll();
-        setAllPrints([...printsData, ...printsData.reverse(), ...printsData]);
+        const printsData = await designApi.getAll();
+        // --- SOLUCIÓN ---
+        // Simplemente asignamos los datos recibidos de la API, sin duplicarlos.
+        setAllPrints(printsData);
       } catch (err) {
         setError('Error al cargar el catálogo de estampas.');
       } finally {
@@ -27,7 +28,7 @@ const PrintsPage = () => {
       }
     };
     loadPrints();
-  }, []);
+  }, []); // El array vacío asegura que esto se ejecute solo una vez
 
   const processedPrints = useMemo(() => {
     let filtered = allPrints.filter(print =>
@@ -44,6 +45,7 @@ const PrintsPage = () => {
         sorted.sort((a, b) => a.author.localeCompare(b.author));
         break;
       default:
+        // Por defecto, se mantiene el orden de la API
         break;
     }
 
@@ -99,13 +101,15 @@ const PrintsPage = () => {
         <Box>
           <Box display="grid" gap={3} gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }}>
             {processedPrints.map((estampa) => (
-              <PrintCard key={estampa.id + Math.random()} {...estampa} />
+              // --- SOLUCIÓN ---
+              // Usamos una 'key' única y estable, que es el ID de la estampa.
+              <PrintCard key={estampa.id} {...estampa} />
             ))}
           </Box>
           {processedPrints.length === 0 && !loading && (
-             <Typography sx={{ mt: 4, textAlign: 'center' }}>
-              No se encontraron estampas que coincidan con tus criterios.
-            </Typography>
+              <Typography sx={{ mt: 4, textAlign: 'center' }}>
+                No se encontraron estampas que coincidan con tus criterios.
+              </Typography>
           )}
         </Box>
       )}

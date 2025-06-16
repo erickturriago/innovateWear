@@ -1,29 +1,27 @@
 // src/models/CartItem.ts
-import type { TShirt } from './TShirt';
-import type { Print } from './Print';
-
 export type TShirtSize = 'S' | 'M' | 'L' | 'XL';
 
+export interface CartItemDisplayData {
+    name: string;
+    image: string;
+}
+
 interface BaseCartItem {
-  id: string;
+  id: string; // ID único para el item en el carrito
   quantity: number;
-  price: number;
+  price: number; // Representa el precio total (unitPrice * quantity)
+  unitPrice: number;
+  size: TShirtSize; // <-- PROPIEDAD AÑADIDA DE VUELTA
+  customDesignId: number;
+  displayData: CartItemDisplayData;
 }
 
 export interface PredesignedCartItem extends BaseCartItem {
   type: 'predesigned';
-  product: TShirt;
-  size: TShirtSize;
 }
 
 export interface CustomCartItem extends BaseCartItem {
   type: 'custom';
-  baseTshirt: {
-    name: 'Manga Corta' | 'Manga Larga' | 'Hoodie';
-    color: string;
-  };
-  prints: Print[]; // AJUSTE: Ahora es un array de estampas
-  size: TShirtSize;
 }
 
 export type CartItem = PredesignedCartItem | CustomCartItem;

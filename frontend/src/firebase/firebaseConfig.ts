@@ -1,8 +1,7 @@
 // src/firebase/firebaseConfig.ts
-import { initializeApp } from "firebase/app";
+import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// Tu configuración de Firebase que nos proporcionaste.
 const firebaseConfig = {
   apiKey: "AIzaSyDv1tb1aM-UcOqtznGFkYbSh7yaUMdnNIg",
   authDomain: "soundrentals-ef63b.firebaseapp.com",
@@ -14,9 +13,8 @@ const firebaseConfig = {
   measurementId: "G-51NDWPZTWY"
 };
 
-// Inicializar la aplicación de Firebase
-const app = initializeApp(firebaseConfig);
+// --- AJUSTE AQUÍ: Añadimos 'export' ---
+export const app: FirebaseApp = initializeApp(firebaseConfig);
 
-// Exportamos las instancias que necesitaremos en la aplicación
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
