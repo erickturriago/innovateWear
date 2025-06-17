@@ -1,5 +1,5 @@
 # Etapa 1: Construcción del JAR con Maven
-FROM maven:3.8.7-eclipse-temurin-21 AS builder
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 # Establece el directorio de trabajo
 WORKDIR /app
