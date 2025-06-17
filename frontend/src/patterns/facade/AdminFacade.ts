@@ -1,5 +1,5 @@
 // src/patterns/facade/AdminFacade.ts
-import adminApi from '../../api/adminApi';
+import {adminApi} from '../../api/adminApi';
 import categoryApi from '../../api/categoryApi'; // <-- Usamos el nuevo servicio
 import type { User } from '../../models/User';
 

@@ -23,19 +23,23 @@ export const CreateDesignForm = ({ categories, onSubmit, onCancel, isSubmitting 
     name: '', description: '', price: 0, categoryId: '', file: null,
   });
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const finalValue = name === 'price' ? (value === '' ? '' : Number(value)) : value;
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
   };
 
+  // --- FUNCIÓN CORREGIDA Y MÁS EXPLÍCITA ---
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData(prev => ({ ...prev, file: e.target.files[0] }));
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const selectedFile = files[0];
+      setFormData(prev => ({ ...prev, file: selectedFile }));
     }
   };
   
-  const handleCategoryChange = (e: SelectChangeEvent<number | ''>) => {
-    setFormData(prev => ({ ...prev, categoryId: e.target.value as number | '' }));
+  const handleCategoryChange = (e: SelectChangeEvent<number>) => {
+    setFormData(prev => ({ ...prev, categoryId: e.target.value as number }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,25 +48,42 @@ export const CreateDesignForm = ({ categories, onSubmit, onCancel, isSubmitting 
       alert('Por favor, completa todos los campos, incluyendo la imagen.');
       return;
     }
-    onSubmit({ ...formData, categoryId: Number(formData.categoryId), file: formData.file });
+    onSubmit({
+        name: formData.name,
+        description: formData.description,
+        price: Number(formData.price),
+        categoryId: Number(formData.categoryId), 
+        file: formData.file 
+    });
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <TextField name="name" label="Nombre del Diseño" onChange={handleChange} required disabled={isSubmitting} />
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+        <TextField name="name" label="Nombre del Diseño" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
+        
         <Button variant="outlined" component="label" disabled={isSubmitting}>
           {formData.file ? `Archivo: ${formData.file.name}` : "Seleccionar Imagen"}
-          <input type="file" hidden onChange={handleFileChange} accept="image/png, image/jpeg" required />
+          <input type="file" hidden onChange={handleFileChange} accept="image/png, image/jpeg, image/webp" required />
         </Button>
-        <TextField name="description" label="Descripción" onChange={handleChange} multiline rows={2} disabled={isSubmitting} />
-        <TextField name="price" label="Precio" type="number" onChange={handleChange} required disabled={isSubmitting} />
+        
+        <TextField name="description" label="Descripción" value={formData.description} onChange={handleChange} multiline rows={2} disabled={isSubmitting} />
+        
+        <TextField name="price" label="Precio" type="number" value={formData.price} onChange={handleChange} required disabled={isSubmitting} inputProps={{ min: 0, step: "1000" }} />
+        
         <FormControl fullWidth required disabled={isSubmitting}>
-          <InputLabel>Categoría</InputLabel>
-          <Select name="categoryId" label="Categoría" value={formData.categoryId} onChange={handleCategoryChange}>
+          <InputLabel id="category-select-label">Categoría</InputLabel>
+          <Select
+            labelId="category-select-label"
+            name="categoryId"
+            label="Categoría"
+            value={formData.categoryId}
+            onChange={handleCategoryChange}
+          >
             {categories.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>)}
           </Select>
         </FormControl>
+
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
           <Button onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
           <Button type="submit" variant="contained" disabled={isSubmitting}>
