@@ -5,7 +5,7 @@ FROM openjdk:17-oracle
 WORKDIR /app
 
 # Copy the JAR file into the container
-COPY ./target/*.jar app.jar
+COPY target/*.jar app.jar
 
 # Expose port 8080
 EXPOSE 8081
