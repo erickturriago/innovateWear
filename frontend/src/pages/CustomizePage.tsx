@@ -138,7 +138,7 @@ const CustomizePage = () => {
   const [builder] = useState(() => new CustomTshirtBuilder());
   const addProductToCart = useCartStore((state) => state.addProduct);
 
-  const colorHexMap: { [key: string]: string } = { 'blanco': '#FFFFFF', 'negro': '#222222', 'gris': '#888888', 'rojo': '#B71C1C', 'azul': '#0D47A1' };
+  const colorHexMap: { [key: string]: string } = { rojo: '#FF0000', azul: '#0000FF', amarillo: '#FFFF00', naranja: '#FFA500', verde: '#008000', morado: '#800080', blanco: '#FFFFFF', negro: '#000000', gris: '#808080', rosado: '#FFC0CB', cian: '#00FFFF', turquesa: '#40E0D0', lila: '#C8A2C8', vino: '#8B0000', beige: '#F5F5DC', marron: '#8B4513', celeste: '#87CEEB', dorado: '#FFD700', plateado: '#C0C0C0' };
 
   useEffect(() => {
     const loadData = async () => {
