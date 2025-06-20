@@ -3,14 +3,13 @@ import type { Print } from '../../models/Print';
 import type { TShirtSize } from '../../models/CartItem';
 import type { TShirt } from '../../models/TShirt';
 
-// La interfaz de lo que el builder produce
+// La interfaz de lo que el builder produce ya no incluye 'id' ni 'price'.
+// Solo contiene las partes esenciales del producto.
 export interface CustomTshirtProduct {
-  id: string;
   baseGarment: TShirt;
   prints: Print[];
   size: TShirtSize;
   quantity: number;
-  price: number;
 }
 
 export class CustomTshirtBuilder {
@@ -45,25 +44,17 @@ export class CustomTshirtBuilder {
   }
 
   public build(): CustomTshirtProduct {
-    if (!this.garment || !this.size || this.prints.length === 0) {
-      throw new Error("Por favor, selecciona una prenda, talla y al menos una estampa.");
+    if (!this.garment || !this.size) {
+      throw new Error("Faltan datos para construir el producto (prenda o talla).");
     }
 
-    const printIds = this.prints.map(p => p.id).join('-');
-    const customId = `${this.garment.id}-${this.garment.color}-${printIds}-${this.size}`;
-    
-    let finalPrice = this.garment.price;
-    this.prints.forEach(() => {
-        finalPrice += 15000; // Asumimos un costo de 15000 por cada estampa
-    });
-
+    // El builder ya no calcula el precio ni un ID complejo.
+    // Su única responsabilidad es ensamblar las partes del objeto.
     return {
-      id: customId,
       baseGarment: this.garment,
       prints: this.prints,
       size: this.size,
       quantity: this.quantity,
-      price: finalPrice * this.quantity,
     };
   }
 }
