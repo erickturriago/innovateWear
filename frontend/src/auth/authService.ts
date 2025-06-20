@@ -9,14 +9,19 @@ const authService = {
     if (!firebaseUser.email) return null;
 
     try {
+      // Intenta encontrar al usuario en tu BD por su email
       const { data: existingUser } = await httpClient.get(`/users/email/${firebaseUser.email}`);
       return UserFactory.createUser(existingUser);
     } catch (error: any) {
+      // Si no lo encuentra (error 404), lo crea
       if (error.response && error.response.status === 404) {
+        // Genera una contraseña aleatoria y segura solo para este usuario de Google
+        const secureRandomPassword = crypto.randomUUID();
+        
         const newUserPayload = {
           name: firebaseUser.displayName || 'Usuario de Google',
           email: firebaseUser.email!,
-          password: Math.random().toString(36).slice(-8),
+          password: secureRandomPassword, // Contraseña de relleno
           role: 'CLIENTE' as UserRole,
         };
         const { data: newUser } = await httpClient.post('/users', newUserPayload);

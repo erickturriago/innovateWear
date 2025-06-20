@@ -2,7 +2,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-// Importamos el nuevo HomeRouter
 import { HomeRouter } from './pages/HomeRouter'; 
 import TShirtsPage from './pages/TShirtsPage';
 import PrintsPage from './pages/PrintsPage';
@@ -24,29 +23,31 @@ import { FirebaseFacade } from './patterns/facade/FirebaseFacade';
 
 function App() {
   const setUser = useAuthStore((state) => state.setUser);
-  const isAuthLoading = useAuthStore((state) => state.isLoading);
 
   useEffect(() => {
+    // Este oyente ahora solo se preocupa por la sesión de Firebase (principalmente Google Sign-In)
+    // al recargar la página. La sesión de usuario/contraseña es manejada por el middleware
+    // 'persist' de Zustand.
     const unsubscribe = FirebaseFacade.onAuthStateChanged(async (firebaseUser) => {
+      // Si al recargar hay un usuario de Firebase, lo sincronizamos.
       if (firebaseUser) {
         const appUser = await authService.findOrCreateUser(firebaseUser);
         setUser(appUser);
       } else {
-        if (isAuthLoading) {
-            setUser(null);
-        }
+        // Si no hay usuario de Firebase, simplemente terminamos la carga.
+        // NO hacemos setUser(null) para no borrar una posible sesión local.
+        setUser(useAuthStore.getState().user);
       }
     });
+
     return () => unsubscribe();
-  }, [setUser, isAuthLoading]);
+  }, [setUser]);
 
   return (
     <Router>
       <Layout>
         <Routes>
-          {/* --- RUTA PRINCIPAL MODIFICADA --- */}
           <Route path="/" element={<HomeRouter />} />
-          
           <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="/tshirts" element={<TShirtsPage />} />
           <Route path="/tshirts/:productId" element={<ProductDetailPage />} />

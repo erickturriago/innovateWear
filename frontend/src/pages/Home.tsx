@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Box, Alert, Skeleton } from '@mui/material';
 import HeroCarousel from '../components/HeroCarousel';
 import ProductCard from '../components/ProductCard';
-import PrintCard from '../components/PrintCard';
+import PrintCard from '../components/ui/PrintCard';
 import ViewMoreCard from '../components/ViewMoreCard';
 import HorizontalProductScroller from '../components/HorizontalProductScroller';
 // ¡CAMBIO IMPORTANTE! Se importa el api de diseños personalizados.
