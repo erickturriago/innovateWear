@@ -13,6 +13,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva';
 import Konva from 'konva';
+
 import designApi from '../api/designApi';
 import tshirtApi from '../api/tshirtApi';
 import categoryApi, { type DesignCategory } from '../api/categoryApi';
@@ -26,6 +27,8 @@ import { dataURLtoFile } from '../utils/dataUrlToFile';
 import type { Print } from '../models/Print';
 import type { TShirt } from '../models/TShirt';
 import type { TShirtSize, CustomCartItem } from '../models/CartItem';
+import { BaseGarmentPrice, PrintPriceDecorator, type PricedItem } from '../patterns/decorator/PriceDecorator';
+
 
 // Hook personalizado para cargar imágenes
 const useImage = (url: string, crossOrigin: string = 'Anonymous'): [HTMLImageElement | undefined] => {
@@ -133,10 +136,12 @@ const CustomizePage = () => {
   const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
   const [designInfo, setDesignInfo] = useState({ name: '', description: '', price: '' });
 
+  const [currentPrice, setCurrentPrice] = useState(0);
+
   const [builder] = useState(() => new CustomTshirtBuilder());
   const addProductToCart = useCartStore((state) => state.addProduct);
 
-  const colorHexMap: { [key: string]: string } = { rojo: '#FF0000', azul: '#0000FF', amarillo: '#FFFF00', naranja: '#FFA500', verde: '#008000', morado: '#800080', blanco: '#FFFFFF', negro: '#000000', gris: '#808080', rosado: '#FFC0CB', cian: '#00FFFF', turquesa: '#40E0D0', lila: '#C8A2C8', vino: '#8B0000', beige: '#F5F5DC', marron: '#8B4513', celeste: '#87CEEB', dorado: '#FFD700', plateado: '#C0C0C0' }
+  const colorHexMap: { [key: string]: string } = { 'blanco': '#FFFFFF', 'negro': '#222222', 'gris': '#888888', 'rojo': '#B71C1C', 'azul': '#0D47A1' };
 
   useEffect(() => {
     const loadData = async () => {
@@ -172,6 +177,7 @@ const CustomizePage = () => {
     loadData();
   }, [showNotification]);
 
+
   useEffect(() => {
     const handleResize = () => {
         if (stageContainerRef.current) {
@@ -200,17 +206,28 @@ const CustomizePage = () => {
   }, [tshirtImage, isLoading]);
 
   useEffect(() => {
-    if (selectedVariant) builder.setGarment(selectedVariant);
+    if (selectedVariant) {
+      builder.setGarment(selectedVariant);
+    }
   }, [selectedVariant, builder]);
 
-  // Lógica de filtrado unificada y eficiente
-  const availablePrints = useMemo(() => {
-    // Si es un artista, filtra la lista para mostrar solo sus estampas
-    const basePrints = isArtist && user
-        ? prints.filter(p => p.author === user.name) 
-        : prints;
+  useEffect(() => {
+    if (!selectedVariant) {
+        setCurrentPrice(0);
+        return;
+    }
+    let pricedItem: PricedItem = new BaseGarmentPrice(selectedVariant);
+    stamps.forEach(stampOnCanvas => {
+        const fullPrintObject = prints.find(p => p.image === stampOnCanvas.src);
+        if (fullPrintObject) {
+            pricedItem = new PrintPriceDecorator(pricedItem, fullPrintObject);
+        }
+    });
+    setCurrentPrice(pricedItem.getPrice());
+  }, [selectedVariant, stamps, prints]);
 
-    // Aplica los filtros de búsqueda y categoría
+  const availablePrints = useMemo(() => {
+    const basePrints = isArtist && user ? prints.filter(p => p.author === user.name) : prints;
     let result = basePrints;
     if (printFilters.query) {
       result = result.filter(p => p.title.toLowerCase().includes(printFilters.query.toLowerCase()));
@@ -281,8 +298,7 @@ const CustomizePage = () => {
 
   const handleFinalAction = async () => {
     if (!user || !selectedVariant) { return; }
-
-    if(isArtist) setSaveDialogOpen(false);
+    if (isArtist) setSaveDialogOpen(false);
     
     setIsSubmitting(true);
     showNotification('Generando imagen final...', 'info');
@@ -291,16 +307,14 @@ const CustomizePage = () => {
       const dataUrl = await generateFinalImage();
       const timestamp = Date.now();
       const snapshotFile = dataURLtoFile(dataUrl, `design-snapshot-${timestamp}.png`);
-
       showNotification('Subiendo imagen final...', 'info');
       const finalImageUrl = await FirebaseFacade.uploadFile(snapshotFile, 'custom-design-previews/');
-
       const productData = builder.setSize(selectedSize).setQuantity(quantity).build();
       
       const payload = {
         name: isArtist ? designInfo.name : `Diseño Personalizado de ${user.name}`,
         description: isArtist ? designInfo.description : "Diseño creado por cliente.",
-        price: isArtist ? Number(designInfo.price) : (productData.price / productData.quantity),
+        price: isArtist ? Number(designInfo.price) : currentPrice,
         creator: { id: user.id },
         product: { id: parseInt(productData.baseGarment.id) },
         isPublic: isArtist,
@@ -322,8 +336,8 @@ const CustomizePage = () => {
           customDesignId: savedCustomDesign.id,
           size: selectedSize,
           quantity: quantity,
-          price: savedCustomDesign.price * quantity,
-          unitPrice: savedCustomDesign.price,
+          price: currentPrice * quantity,
+          unitPrice: currentPrice,
           displayData: {
             name: savedCustomDesign.name,
             image: savedCustomDesign.previewImageUrl,
@@ -386,15 +400,8 @@ const CustomizePage = () => {
                 </Paper>
             )}
             
-            <Paper elevation={2} sx={{
-                p: 2,
-                borderRadius: 3,
-                display: 'flex',
-                flexDirection: 'column',
-                flexGrow: 1,
-                minHeight: 0, 
-            }}>
-                <Typography variant="h6" gutterBottom>3. Añade Estampas</Typography>
+            <Paper elevation={2} sx={{ p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="h6" gutterBottom>{isArtist?"2. Añade Estampas":"3. Añade Estampas"}</Typography>
                 <Box display="flex" gap={2} mb={2}>
                     <TextField label="Buscar..." variant="outlined" size="small" fullWidth onChange={e => setPrintFilters(f => ({ ...f, query: e.target.value }))} />
                     <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -405,13 +412,8 @@ const CustomizePage = () => {
                         </Select>
                     </FormControl>
                 </Box>
-
-                <Box sx={{
-                    maxHeight: '350px',
-                    flexGrow: 1,
-                    overflowY: 'auto',
-                    pr: 1 
-                }}>
+                
+                <Box sx={{ height: isArtist? '500px':'270px', overflowY: 'auto', pr: 1 }}>
                     <Box display="grid" gap={2} gridTemplateColumns="repeat(auto-fill, minmax(80px, 1fr))">
                         {availablePrints.map(print => (
                             <Tooltip key={print.id} title={`Añadir "${print.title}"`}>
@@ -424,6 +426,17 @@ const CustomizePage = () => {
                 </Box>
             </Paper>
 
+            {!isArtist && (
+              <Paper elevation={2} sx={{ p: 2, borderRadius: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Precio Total:</Typography>
+                  <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
+                    {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(currentPrice * quantity)}
+                  </Typography>
+                </Box>
+              </Paper>
+            )}
+            
             <Button 
                 variant="contained" 
                 size="large" 
@@ -449,11 +462,7 @@ const CustomizePage = () => {
                 ref={stageRef}
             >
                 <Layer listening={false}>
-                    <KonvaImage
-                        image={tshirtImage}
-                        {...tshirtImageSize}
-                        listening={false}
-                    />
+                    <KonvaImage image={tshirtImage} {...tshirtImageSize} listening={false} />
                 </Layer>
                 <Layer>
                     {stamps.map((stamp, i) => (

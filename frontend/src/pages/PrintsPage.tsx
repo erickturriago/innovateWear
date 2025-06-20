@@ -1,7 +1,7 @@
 // src/pages/PrintsPage.tsx
 import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Alert, Skeleton, Paper, TextField, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
-import PrintCard from '../components/ui/PrintCard'; // Usamos la versión más completa de PrintCard
+import PrintCard from '../components/ui/PrintCard';
 import designApi from '../api/designApi';
 import type { Print } from '../models/Print';
 
@@ -18,8 +18,6 @@ const PrintsPage = () => {
       try {
         setLoading(true);
         const printsData = await designApi.getAll();
-        // --- SOLUCIÓN ---
-        // Simplemente asignamos los datos recibidos de la API, sin duplicarlos.
         setAllPrints(printsData);
       } catch (err) {
         setError('Error al cargar el catálogo de estampas.');
@@ -28,7 +26,7 @@ const PrintsPage = () => {
       }
     };
     loadPrints();
-  }, []); // El array vacío asegura que esto se ejecute solo una vez
+  }, []);
 
   const processedPrints = useMemo(() => {
     let filtered = allPrints.filter(print =>
@@ -38,11 +36,12 @@ const PrintsPage = () => {
     const sorted = [...filtered];
 
     switch (sortOption) {
-      case 'likes-desc':
-        sorted.sort((a, b) => b.likes - a.likes);
-        break;
+      // Se elimina el caso 'likes-desc'
       case 'author-asc':
         sorted.sort((a, b) => a.author.localeCompare(b.author));
+        break;
+      case 'name-asc': // Añadimos una nueva opción para ordenar por nombre de la estampa
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
         break;
       default:
         // Por defecto, se mantiene el orden de la API
@@ -87,7 +86,8 @@ const PrintsPage = () => {
           <InputLabel>Ordenar por</InputLabel>
           <Select label="Ordenar por" value={sortOption} onChange={handleSortChange}>
             <MenuItem value="default">Por Defecto</MenuItem>
-            <MenuItem value="likes-desc">Más populares</MenuItem>
+            {/* Se elimina la opción de "Más populares" */}
+            <MenuItem value="name-asc">Nombre: A-Z</MenuItem>
             <MenuItem value="author-asc">Artista: A-Z</MenuItem>
           </Select>
         </FormControl>
@@ -101,8 +101,6 @@ const PrintsPage = () => {
         <Box>
           <Box display="grid" gap={3} gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }}>
             {processedPrints.map((estampa) => (
-              // --- SOLUCIÓN ---
-              // Usamos una 'key' única y estable, que es el ID de la estampa.
               <PrintCard key={estampa.id} {...estampa} />
             ))}
           </Box>

@@ -5,5 +5,6 @@ export interface Print {
   title: string;
   category: string;
   author: string;
+  price: number;
   link: string;
 }
