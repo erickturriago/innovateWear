@@ -7,7 +7,6 @@ import {
 import { adminApi } from '../../api/adminApi';
 import { useNotificationStore } from '../../store/notificationStore';
 
-// Función helper para asignar un color a cada estado del pedido
 const getStatusChipColor = (status: string) => {
     switch (status) {
         case 'PENDIENTE': return 'warning';
@@ -15,6 +14,23 @@ const getStatusChipColor = (status: string) => {
         case 'COMPLETADO': return 'success';
         case 'CANCELADO': return 'error';
         default: return 'default';
+    }
+}
+
+// --- NUEVA LÓGICA PARA DETERMINAR LAS OPCIONES VÁLIDAS ---
+const getValidNextStatuses = (currentStatus: string): string[] => {
+    switch (currentStatus) {
+        case 'PENDIENTE':
+            return ['PENDIENTE', 'PROCESANDO', 'CANCELADO'];
+        case 'PROCESANDO':
+            return ['PROCESANDO', 'COMPLETADO', 'CANCELADO'];
+        // Para estados finales, solo se puede seleccionar el estado actual (está deshabilitado)
+        case 'COMPLETADO':
+            return ['COMPLETADO'];
+        case 'CANCELADO':
+            return ['CANCELADO'];
+        default:
+            return [];
     }
 }
 
@@ -28,7 +44,6 @@ export const OrderManagement = () => {
         try {
             setLoading(true);
             const data = await adminApi.getAllOrders();
-            // Ordenar por ID descendente para ver los más nuevos primero
             setOrders(data.sort((a, b) => b.id - a.id));
         } catch (err) {
             setError('No se pudo cargar la lista de pedidos.');
@@ -46,8 +61,13 @@ export const OrderManagement = () => {
             const updatedOrder = await adminApi.updateOrderStatus(orderId, newStatus);
             setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
             showNotification('Estado del pedido actualizado', 'success');
-        } catch (err) {
-            showNotification('Error al actualizar el estado', 'error');
+        } catch (err: any) {
+            // Si el backend nos da un error de lógica, lo mostramos
+            if(err.response && err.response.data) {
+                showNotification(err.response.data.message || 'No se pudo actualizar el estado.', 'error');
+            } else {
+                showNotification('Error al actualizar el estado', 'error');
+            }
         }
     };
 
@@ -69,47 +89,47 @@ export const OrderManagement = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {orders.map((order) => (
-                            <TableRow key={order.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                <TableCell>#{order.id}</TableCell>
-                                <TableCell>{order.customerName} ({order.customerEmail})</TableCell>
-                                <TableCell>{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(order.total)}</TableCell>
-                                <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
-                                <TableCell>
-                                    {/* --- AQUÍ ESTÁ EL CAMBIO --- */}
-                                    <Select
-                                        value={order.status}
-                                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                        size="small"
-                                        // 1. renderValue personaliza cómo se ve el valor seleccionado
-                                        renderValue={(selected) => (
-                                            <Chip
-                                                label={selected}
-                                                color={getStatusChipColor(selected)}
-                                                size="small"
-                                                sx={{ minWidth: '90px' }}
-                                            />
-                                        )}
-                                        // 2. sx se usa para quitar el borde blanco y hacerlo más limpio
-                                        sx={{
-                                            boxShadow: 'none',
-                                            '.MuiOutlinedInput-notchedOutline': { border: 0 },
-                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: 0 },
-                                            // Asegura que el texto dentro del menú también se vea bien
-                                            '.MuiSelect-select': {
-                                                padding: '6px 20px 6px 0px',
-                                            }
-                                        }}
-                                    >
-                                        {/* 3. Las opciones del menú ahora son texto simple */}
-                                        <MenuItem value="PENDIENTE">Pendiente</MenuItem>
-                                        <MenuItem value="PROCESANDO">Procesando</MenuItem>
-                                        <MenuItem value="COMPLETADO">Completado</MenuItem>
-                                        <MenuItem value="CANCELADO">Cancelado</MenuItem>
-                                    </Select>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {orders.map((order) => {
+                            const validStatuses = getValidNextStatuses(order.status);
+                            const isFinalState = order.status === 'COMPLETADO' || order.status === 'CANCELADO';
+
+                            return (
+                                <TableRow key={order.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                    <TableCell>#{order.id}</TableCell>
+                                    <TableCell>{order.customerName} ({order.customerEmail})</TableCell>
+                                    <TableCell>{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(order.total)}</TableCell>
+                                    <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                                    <TableCell>
+                                        <Select
+                                            value={order.status}
+                                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                            size="small"
+                                            disabled={isFinalState} // Deshabilitamos el selector si el estado es final
+                                            renderValue={(selected) => (
+                                                <Chip
+                                                    label={selected}
+                                                    color={getStatusChipColor(selected)}
+                                                    size="small"
+                                                    sx={{ minWidth: '90px' }}
+                                                />
+                                            )}
+                                            sx={{
+                                                boxShadow: 'none',
+                                                '.MuiOutlinedInput-notchedOutline': { border: 0 },
+                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { border: 0 },
+                                                '.MuiSelect-select': { padding: '6px 20px 6px 0px' }
+                                            }}
+                                        >
+                                            {/* Mostramos solo las opciones de estado válidas */}
+                                            <MenuItem value="PENDIENTE" disabled={!validStatuses.includes('PENDIENTE')}>Pendiente</MenuItem>
+                                            <MenuItem value="PROCESANDO" disabled={!validStatuses.includes('PROCESANDO')}>Procesando</MenuItem>
+                                            <MenuItem value="COMPLETADO" disabled={!validStatuses.includes('COMPLETADO')}>Completado</MenuItem>
+                                            <MenuItem value="CANCELADO" disabled={!validStatuses.includes('CANCELADO')}>Cancelado</MenuItem>
+                                        </Select>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </TableContainer>
