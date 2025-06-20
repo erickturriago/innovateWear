@@ -9,7 +9,6 @@ const mapApiToPrint = (apiDesign: any): Print => {
     image: apiDesign.imageUrl || 'https://placehold.co/400x400/1a1a1a/ffffff/png?text=Print',
     category: apiDesign.category?.name || 'General',
     author: apiDesign.artist?.name || 'Anónimo',
-    likes: Math.floor(Math.random() * 300),
     link: `/prints/${apiDesign.id}`,
   };
 };

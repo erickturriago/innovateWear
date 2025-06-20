@@ -2,23 +2,26 @@
 import { useState } from 'react';
 import { Box, Typography, Button, Paper, TextField, Alert } from '@mui/material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { AuthStrategy, EmailPasswordSignUpStrategy } from '../patterns/strategy/AuthStrategy';
+import { EmailPasswordSignUpStrategy } from '../patterns/strategy/AuthStrategy';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const [name, setName] = useState(''); // <-- Nuevo estado para el nombre
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // El "Contexto" que usará la estrategia de registro
-  const handleRegister = async (strategy: AuthStrategy, ...args: any[]) => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
-    const success = await strategy.execute(...args);
+    
+    const strategy = new EmailPasswordSignUpStrategy();
+    const success = await strategy.execute(email, password, name); 
+    
     if (success) {
-      // Si el registro es exitoso, el listener de Firebase se encargará del resto.
-      // Redirigimos al home.
-      alert('¡Registro exitoso! Serás redirigido a la página principal.');
-      navigate('/');
+      // Después de registrar, el usuario debe iniciar sesión
+      alert('¡Registro exitoso! Ahora por favor inicia sesión.');
+      navigate('/login');
     } else {
       setError('Falló el registro. El email podría estar en uso o la contraseña es muy débil.');
     }
@@ -31,14 +34,15 @@ const RegisterPage = () => {
           Crear Cuenta
         </Typography>
         
-        <Box 
-          component="form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleRegister(new EmailPasswordSignUpStrategy(), email, password);
-          }}
-          sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 3 }}
-        >
+        <Box component="form" onSubmit={handleRegister} sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 3 }}>
+          <TextField
+            label="Nombre Completo"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
+          />
           <TextField
             label="Email"
             type="email"
@@ -62,9 +66,7 @@ const RegisterPage = () => {
 
         <Typography variant="body2" align="center" sx={{ mt: 3 }}>
           ¿Ya tienes una cuenta?{' '}
-          <RouterLink to="/login">
-            Inicia sesión aquí
-          </RouterLink>
+          <RouterLink to="/login">Inicia sesión aquí</RouterLink>
         </Typography>
       </Paper>
     </Box>

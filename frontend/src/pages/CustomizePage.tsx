@@ -1,5 +1,5 @@
 // src/pages/CustomizePage.tsx
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Button, Tooltip, ToggleButtonGroup, ToggleButton,
@@ -13,13 +13,12 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva';
 import Konva from 'konva';
-
 import designApi from '../api/designApi';
 import tshirtApi from '../api/tshirtApi';
 import categoryApi, { type DesignCategory } from '../api/categoryApi';
 import customDesignApi from '../api/customDesignApi';
 import { useCartStore } from '../store/cartStore';
-import { useAuth } from '../auth/useAuth'; // Importamos useAuth
+import { useAuth } from '../auth/useAuth';
 import { CustomTshirtBuilder } from '../patterns/builder/CustomTshirtBuilder';
 import { useNotificationStore } from '../store/notificationStore';
 import { FirebaseFacade } from '../patterns/facade/FirebaseFacade';
@@ -117,7 +116,6 @@ const CustomizePage = () => {
   
   const [groupedGarments, setGroupedGarments] = useState<GroupedGarment[]>([]);
   const [prints, setPrints] = useState<Print[]>([]);
-  const [filteredPrints, setFilteredPrints] = useState<Print[]>([]);
   const [categories, setCategories] = useState<DesignCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -138,7 +136,7 @@ const CustomizePage = () => {
   const [builder] = useState(() => new CustomTshirtBuilder());
   const addProductToCart = useCartStore((state) => state.addProduct);
 
-  const colorHexMap: { [key: string]: string } = { rojo: '#FF0000', azul: '#0000FF', amarillo: '#FFFF00', naranja: '#FFA500', verde: '#008000', morado: '#800080', blanco: '#FFFFFF', negro: '#000000', gris: '#808080', rosado: '#FFC0CB', cian: '#00FFFF', turquesa: '#40E0D0', lila: '#C8A2C8', vino: '#8B0000', beige: '#F5F5DC', marron: '#8B4513', celeste: '#87CEEB', dorado: '#FFD700', plateado: '#C0C0C0' };
+  const colorHexMap: { [key: string]: string } = { rojo: '#FF0000', azul: '#0000FF', amarillo: '#FFFF00', naranja: '#FFA500', verde: '#008000', morado: '#800080', blanco: '#FFFFFF', negro: '#000000', gris: '#808080', rosado: '#FFC0CB', cian: '#00FFFF', turquesa: '#40E0D0', lila: '#C8A2C8', vino: '#8B0000', beige: '#F5F5DC', marron: '#8B4513', celeste: '#87CEEB', dorado: '#FFD700', plateado: '#C0C0C0' }
 
   useEffect(() => {
     const loadData = async () => {
@@ -160,7 +158,6 @@ const CustomizePage = () => {
         const groupedData = Object.values(groups);
         setGroupedGarments(groupedData);
         setPrints(allPrints);
-        setFilteredPrints(allPrints);
         setCategories(allCategories);
         if (groupedData.length > 0) {
           setSelectedGroup(groupedData[0]);
@@ -174,7 +171,6 @@ const CustomizePage = () => {
     };
     loadData();
   }, [showNotification]);
-
 
   useEffect(() => {
     const handleResize = () => {
@@ -203,20 +199,28 @@ const CustomizePage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [tshirtImage, isLoading]);
 
-
   useEffect(() => {
     if (selectedVariant) builder.setGarment(selectedVariant);
   }, [selectedVariant, builder]);
 
-  useEffect(() => {
-    let result = prints;
-    if (printFilters.query) result = result.filter(p => p.title.toLowerCase().includes(printFilters.query.toLowerCase()));
+  // Lógica de filtrado unificada y eficiente
+  const availablePrints = useMemo(() => {
+    // Si es un artista, filtra la lista para mostrar solo sus estampas
+    const basePrints = isArtist && user
+        ? prints.filter(p => p.author === user.name) 
+        : prints;
+
+    // Aplica los filtros de búsqueda y categoría
+    let result = basePrints;
+    if (printFilters.query) {
+      result = result.filter(p => p.title.toLowerCase().includes(printFilters.query.toLowerCase()));
+    }
     if (printFilters.categoryId !== 'all') {
       const cat = categories.find(c => c.id === Number(printFilters.categoryId));
       if (cat) result = result.filter(p => p.category === cat.name);
     }
-    setFilteredPrints(result);
-  }, [prints, printFilters, categories]);
+    return result;
+  }, [prints, printFilters, categories, isArtist, user]);
 
   const checkDeselect = (e: any) => {
     const clickedOnEmpty = e.target === e.target.getStage();
@@ -367,7 +371,6 @@ const CustomizePage = () => {
                 )}
             </Paper>
 
-            {/* --- LÓGICA CONDICIONAL PARA OCULTAR TALLA Y CANTIDAD --- */}
             {!isArtist && (
                 <Paper elevation={2} sx={{ p: 2, borderRadius: 3 }}>
                     <Typography variant="h6" gutterBottom>2. Elige Talla y Cantidad</Typography>
@@ -382,31 +385,45 @@ const CustomizePage = () => {
                     </Box>
                 </Paper>
             )}
-
-            <Paper elevation={2} sx={{ p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+            
+            <Paper elevation={2} sx={{
+                p: 2,
+                borderRadius: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                flexGrow: 1,
+                minHeight: 0, 
+            }}>
                 <Typography variant="h6" gutterBottom>3. Añade Estampas</Typography>
                 <Box display="flex" gap={2} mb={2}>
-                <TextField label="Buscar..." variant="outlined" size="small" fullWidth onChange={e => setPrintFilters(f => ({ ...f, query: e.target.value }))} />
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Categoría</InputLabel>
-                    <Select value={printFilters.categoryId} label="Categoría" onChange={e => setPrintFilters(f => ({ ...f, categoryId: e.target.value }))}>
-                    <MenuItem value="all">Todas</MenuItem>
-                    {categories.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>)}
-                    </Select>
-                </FormControl>
+                    <TextField label="Buscar..." variant="outlined" size="small" fullWidth onChange={e => setPrintFilters(f => ({ ...f, query: e.target.value }))} />
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Categoría</InputLabel>
+                        <Select value={printFilters.categoryId} label="Categoría" onChange={e => setPrintFilters(f => ({ ...f, categoryId: e.target.value as string | '' }))}>
+                            <MenuItem value="all">Todas</MenuItem>
+                            {categories.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>)}
+                        </Select>
+                    </FormControl>
                 </Box>
-                <Box sx={{ overflowY: 'auto', flexGrow: 1, pr: 1, minHeight: '200px' }}>
-                <Box display="grid" gap={2} gridTemplateColumns="repeat(auto-fill, minmax(80px, 1fr))">
-                    {filteredPrints.map(print => (
-                    <Tooltip key={print.id} title={`Añadir "${print.title}"`}>
-                        <Paper onClick={() => handleAddPrint(print)} elevation={0} sx={{ border: '1px solid #ddd', cursor: 'pointer', aspectRatio: '1 / 1', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
-                        <img src={print.image} alt={print.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }} />
-                        </Paper>
-                    </Tooltip>
-                    ))}
-                </Box>
+
+                <Box sx={{
+                    maxHeight: '350px',
+                    flexGrow: 1,
+                    overflowY: 'auto',
+                    pr: 1 
+                }}>
+                    <Box display="grid" gap={2} gridTemplateColumns="repeat(auto-fill, minmax(80px, 1fr))">
+                        {availablePrints.map(print => (
+                            <Tooltip key={print.id} title={`Añadir "${print.title}"`}>
+                                <Paper onClick={() => handleAddPrint(print)} elevation={0} sx={{ border: '1px solid #ddd', cursor: 'pointer', aspectRatio: '1 / 1', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
+                                <img src={print.image} alt={print.title} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }} />
+                                </Paper>
+                            </Tooltip>
+                        ))}
+                    </Box>
                 </Box>
             </Paper>
+
             <Button 
                 variant="contained" 
                 size="large" 

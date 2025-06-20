@@ -11,7 +11,6 @@ const formatPrice = (price: number) => {
 
 const ProductCard = (props: TShirt) => {
   const { image, title, category, price, link } = props;
-  console.log(props)
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
       <CardActionArea component={RouterLink} to={link} sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>

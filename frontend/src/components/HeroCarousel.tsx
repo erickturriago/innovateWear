@@ -2,9 +2,16 @@
 import Slider from 'react-slick';
 import { Box, Typography, Button } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { heroImages } from '../data/mockData';
+import { heroImages as originalHeroImages } from '../data/mockData';
+import imagenDeFondoLocal from '../assets/banner.jpg'; 
 
 const HeroCarousel = () => {
+  // Se mapean los datos originales para que todos usen la misma imagen de fondo
+  const heroImages = originalHeroImages.map(item => ({
+    ...item, // Mantiene el id, title, subtitle, etc. originales
+    img: imagenDeFondoLocal, // Sobrescribe la imagen para que todos usen la misma
+  }));
+
   const settings = {
     dots: true,
     infinite: true,
@@ -12,7 +19,7 @@ const HeroCarousel = () => {
     slidesToShow: 1,
     slidesToScroll: 1,
     autoplay: true,
-    arrows: true, // Flechas activadas
+    arrows: true,
   };
 
   return (
