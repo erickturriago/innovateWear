@@ -4,12 +4,15 @@ import com.innovatewear.entity.User;
 import com.innovatewear.entity.User.UserRole;
 import com.innovatewear.repository.UserRepository;
 import com.innovatewear.service.template.BaseEntityService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService extends BaseEntityService<User, Long> {
@@ -52,19 +55,38 @@ public class UserService extends BaseEntityService<User, Long> {
 
     @Override
     protected void updateEntityFields(User existing, User details) {
-        existing.setName(details.getName());
+        // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN PARCIAL ---
 
-        // Solo actualizar email si es diferente y no existe
-        if (!existing.getEmail().equals(details.getEmail())) {
+        // Solo actualiza el nombre si se proporciona uno nuevo
+        if (details.getName() != null) {
+            existing.setName(details.getName());
+        }
+
+        // Solo actualiza el email si es diferente y no existe ya
+        if (details.getEmail() != null && !existing.getEmail().equals(details.getEmail())) {
             if (userRepository.existsByEmail(details.getEmail())) {
                 throw new RuntimeException("El email ya está registrado: " + details.getEmail());
             }
             existing.setEmail(details.getEmail());
         }
 
-        existing.setPassword(details.getPassword());
-        existing.setRole(details.getRole());
-        existing.setActive(details.getActive());
+        // Solo actualiza la contraseña si se proporciona una nueva y no está vacía
+        // (En un caso real, aquí iría el hasheo con BCrypt)
+        if (details.getPassword() != null && !details.getPassword().isEmpty()) {
+            existing.setPassword(details.getPassword());
+        }
+
+        // Solo actualiza el rol si se proporciona uno nuevo
+        if (details.getRole() != null) {
+            existing.setRole(details.getRole());
+        }
+
+        // Solo actualiza el estado 'active' si se proporciona
+        if (details.getActive() != null) {
+            existing.setActive(details.getActive());
+        }
+
+        // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN PARCIAL ---
     }
 
     @Override
@@ -74,7 +96,9 @@ public class UserService extends BaseEntityService<User, Long> {
 
     // Obtener todos los usuarios
     public List<User> getAllUsers() {
-        return getAllEntities(); // Usa metodo del template
+        return getAllEntities().stream()
+                .filter(user -> user.getIsArchived() != null && !user.getIsArchived())
+                .collect(Collectors.toList());
     }
 
     // Obtener solo usuarios activos
@@ -117,7 +141,7 @@ public class UserService extends BaseEntityService<User, Long> {
     public Optional<User> login(String email, String password) {
         Optional<User> userOptional = userRepository.findByEmail(email);
 
-        if (userOptional.isPresent() && userOptional.get().getPassword().equals(password)) {
+        if (userOptional.isPresent() && userOptional.get().getPassword().equals(password) && !userOptional.get().getIsArchived()) {
             return userOptional;
         }
 
@@ -180,5 +204,13 @@ public class UserService extends BaseEntityService<User, Long> {
     // Verificar si existe email
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    public void archiveUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado con ID: " + id));
+        user.setIsArchived(true);
+        user.setActive(false);
+        userRepository.save(user);
     }
 }

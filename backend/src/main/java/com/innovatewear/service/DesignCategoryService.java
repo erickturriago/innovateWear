@@ -3,12 +3,14 @@ package com.innovatewear.service;
 import com.innovatewear.entity.DesignCategory;
 import com.innovatewear.repository.DesignCategoryRepository;
 import com.innovatewear.service.template.BaseEntityService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class DesignCategoryService extends BaseEntityService<DesignCategory, Long> {
@@ -46,16 +48,32 @@ public class DesignCategoryService extends BaseEntityService<DesignCategory, Lon
 
     @Override
     protected void updateEntityFields(DesignCategory existing, DesignCategory details) {
-        // Solo actualizar nombre si es diferente y no existe
-        if (!existing.getName().equals(details.getName())) {
+        // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN PARCIAL CORREGIDA ---
+
+        // Solo actualiza el nombre si se proporciona uno, no está vacío y es diferente al actual
+        if (details.getName() != null && !details.getName().isEmpty() && !existing.getName().equals(details.getName())) {
             if (designCategoryRepository.existsByName(details.getName())) {
-                throw new RuntimeException("Ya existe una categoría con el nombre: " + details.getName());
+                throw new RuntimeException("Ya existe una categoría con ese nombre: " + details.getName());
             }
             existing.setName(details.getName());
         }
 
-        existing.setDescription(details.getDescription());
-        existing.setActive(details.getActive());
+        // Solo actualiza la descripción si se proporciona una
+        if (details.getDescription() != null) {
+            existing.setDescription(details.getDescription());
+        }
+
+        // Solo actualiza el estado 'active' si se proporciona
+        if (details.getActive() != null) {
+            existing.setActive(details.getActive());
+        }
+
+        // También manejamos el estado 'isArchived' por si se envía por aquí
+        if (details.getIsArchived() != null) {
+            existing.setIsArchived(details.getIsArchived());
+        }
+
+        // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN PARCIAL ---
     }
 
     @Override
@@ -65,7 +83,9 @@ public class DesignCategoryService extends BaseEntityService<DesignCategory, Lon
 
     // Public methods using template methods
     public List<DesignCategory> getAllCategories() {
-        return getAllEntities();
+        return getAllEntities().stream()
+                .filter(category -> category.getIsArchived() != null && !category.getIsArchived())
+                .collect(Collectors.toList());
     }
 
     public List<DesignCategory> getActiveCategories() {
@@ -115,5 +135,13 @@ public class DesignCategoryService extends BaseEntityService<DesignCategory, Lon
 
     public boolean existsByName(String name) {
         return designCategoryRepository.existsByName(name);
+    }
+
+    public void archiveCategory(Long id) {
+        DesignCategory category = designCategoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Categoría no encontrada con ID: " + id));
+        category.setIsArchived(true);
+        category.setActive(false);
+        designCategoryRepository.save(category);
     }
 }

@@ -7,12 +7,14 @@ import com.innovatewear.repository.DesignRepository;
 import com.innovatewear.repository.DesignCategoryRepository;
 import com.innovatewear.repository.UserRepository;
 import com.innovatewear.service.template.BaseEntityService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 import com.innovatewear.service.strategy.DesignSearchContext;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class DesignService extends BaseEntityService<Design, Long> {
@@ -117,7 +119,9 @@ public class DesignService extends BaseEntityService<Design, Long> {
 
     // Public methods using template methods
     public List<Design> getAllDesigns() {
-        return getAllEntities();
+        return getAllEntities().stream()
+                .filter(design -> design.getIsArchived() != null && !design.getIsArchived())
+                .collect(Collectors.toList());
     }
 
     public List<Design> getActiveDesigns() {
@@ -185,5 +189,13 @@ public class DesignService extends BaseEntityService<Design, Long> {
 
     public boolean existsById(Long id) {
         return super.existsById(id);
+    }
+
+    public void archiveDesign(Long id) {
+        Design design = designRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Diseño no encontrado con ID: " + id));
+        design.setIsArchived(true);
+        design.setActive(false);
+        designRepository.save(design);
     }
 }

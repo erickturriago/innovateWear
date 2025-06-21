@@ -176,4 +176,14 @@ public class UserController {
         List<User> users = userService.searchUsersByName(name);
         return ResponseFactory.success(users);
     }
+
+    @DeleteMapping("/{id}/archive")
+    public ResponseEntity<Void> archiveProduct(@PathVariable Long id) {
+        try {
+            userService.archiveUser(id);
+            return ResponseFactory.noContent();
+        } catch (Exception e) {
+            return ResponseFactory.notFound();
+        }
+    }
 }

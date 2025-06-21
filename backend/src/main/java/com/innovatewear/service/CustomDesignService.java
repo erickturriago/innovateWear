@@ -121,7 +121,9 @@ public class CustomDesignService {
     }
 
     public List<CustomDesign> getAllCustomDesigns() {
-        return customDesignRepository.findAll();
+        return customDesignRepository.findAll().stream()
+                .filter(customDesign -> customDesign.getIsArchived() != null && !customDesign.getIsArchived())
+                .collect(Collectors.toList());
     }
 
     public CustomDesign toggleActivation(Long designId) {
@@ -133,5 +135,13 @@ public class CustomDesignService {
 
     public Optional<CustomDesign> getActiveCustomDesignById(Long id) {
         return customDesignRepository.findByIdAndActiveTrue(id);
+    }
+
+    public void archiveCustomDesign(Long id) {
+        CustomDesign design = customDesignRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Diseño no encontrado con ID: " + id));
+        design.setIsArchived(true);
+        design.setActive(false);
+        customDesignRepository.save(design);
     }
 }

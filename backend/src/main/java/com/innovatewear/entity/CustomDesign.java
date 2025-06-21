@@ -44,6 +44,9 @@ public class CustomDesign {
     @Column(nullable = false)
     private Boolean active = true;
 
+    @Column(name = "is_archived", nullable = false)
+    private Boolean isArchived = false;
+
     @OneToMany(mappedBy = "customDesign", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<CustomDesignPrint> prints = new ArrayList<>();
 
