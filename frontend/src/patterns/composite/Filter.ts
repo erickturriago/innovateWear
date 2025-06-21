@@ -1,30 +1,31 @@
 // src/patterns/composite/Filter.ts
 
 /**
+ * Helper para obtener de forma segura un valor de una propiedad anidada.
+ * Ej: getNestedProperty(obj, 'creator.name')
+ */
+function getNestedProperty(obj: any, path: string): any {
+    return path.split('.').reduce((o, key) => (o && o[key] !== undefined ? o[key] : null), obj);
+}
+
+/**
  * La interfaz Componente (Filter) define el contrato.
- * Todos los filtros deben poder aplicar sus reglas a un array de items.
  */
 export interface Filter<T> {
   apply(items: T[]): T[];
 }
 
 /**
- * La Hoja (Leaf): Un criterio de filtro individual y genérico que busca un texto
- * en una propiedad específica de un objeto.
+ * Hoja (Leaf): Filtra por inclusión de texto en una propiedad (incluso anidada).
  */
-export class TextPropertyFilter<T> implements Filter<T> {
-  constructor(
-    private key: keyof T, // La propiedad del objeto a filtrar (ej: 'title')
-    private query: string // El texto a buscar
-  ) {}
+export class StringIncludesPropertyFilter<T> implements Filter<T> {
+  constructor(private key: string, private query: string) {}
 
   apply(items: T[]): T[] {
-    if (!this.query) return items; // Si no hay texto, no filtra nada
-
+    if (!this.query) return items;
     const lowerCaseQuery = this.query.toLowerCase();
-
     return items.filter(item => {
-      const value = item[this.key];
+      const value = getNestedProperty(item, this.key); // <-- MEJORA
       if (typeof value === 'string') {
         return value.toLowerCase().includes(lowerCaseQuery);
       }
@@ -34,21 +35,56 @@ export class TextPropertyFilter<T> implements Filter<T> {
 }
 
 /**
- * El Compuesto (Composite): Agrupa varios filtros y los aplica en conjunto.
- * Este AndFilter se asegura de que un item cumpla con TODOS los filtros hijos.
+ * Hoja (Leaf): Filtra por coincidencia exacta en una propiedad (incluso anidada).
+ */
+export class ExactPropertyFilter<T> implements Filter<T> {
+    constructor(private key: string, private value: any) {}
+  
+    apply(items: T[]): T[] {
+        if (this.value === null || this.value === undefined || this.value === 'TODOS') {
+            return items;
+        }
+        return items.filter(item => {
+            const propValue = getNestedProperty(item, this.key); // <-- MEJORA
+            return propValue === this.value;
+        });
+    }
+}
+
+/**
+ * Decorador (Decorator): Invierte el resultado de un filtro.
+ */
+export class NotFilter<T> implements Filter<T> {
+    constructor(private filter: Filter<T>) {}
+
+    apply(items: T[]): T[] {
+        const itemsToExclude = this.filter.apply(items);
+        const itemsToExcludeIds = new Set(itemsToExclude.map(item => item.id));
+        return items.filter(item => !itemsToExcludeIds.has(item.id));
+    }
+}
+
+/**
+ * Compuesto (Composite): Aplica filtros con lógica AND.
  */
 export class AndFilter<T> implements Filter<T> {
   private filters: Filter<T>[] = [];
-
-  public add(filter: Filter<T>): void {
-    this.filters.push(filter);
-  }
-
+  public add(filter: Filter<T>): void { this.filters.push(filter); }
   public apply(items: T[]): T[] {
-    // Aplica cada filtro hijo en secuencia sobre el resultado del anterior
-    return this.filters.reduce(
-        (currentItems, filter) => filter.apply(currentItems), 
-        items
-    );
+    return this.filters.reduce((currentItems, filter) => filter.apply(currentItems), items);
   }
+}
+
+/**
+ * Compuesto (Composite): Aplica filtros con lógica OR.
+ */
+export class OrFilter<T> implements Filter<T> {
+    private filters: Filter<T>[] = [];
+    public add(filter: Filter<T>): void { this.filters.push(filter); }
+    public apply(items: T[]): T[] {
+        if (this.filters.length === 0) return items;
+        const allResults = this.filters.flatMap(filter => filter.apply(items));
+        const uniqueResults = Array.from(new Map(allResults.map(item => [item.id, item])).values());
+        return uniqueResults;
+    }
 }

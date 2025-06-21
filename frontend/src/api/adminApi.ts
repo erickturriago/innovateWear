@@ -1,13 +1,7 @@
 // src/api/adminApi.ts
 import { httpClient } from '../patterns/singleton/ApiClient';
 
-// Definimos tipos básicos para claridad. Puedes hacerlos más específicos si quieres.
-type User = any;
-type Order = any;
-type Product = any; 
-type Design = any;
-type CustomDesign = any;
-type Category = any;
+type User = any; type Order = any; type Product = any; type Design = any; type CustomDesign = any; type Category = any;
 
 export const adminApi = {
   // --- Usuarios ---
@@ -18,6 +12,12 @@ export const adminApi = {
   updateUser: async (id: number, data: Partial<User>): Promise<User> => {
     const response = await httpClient.put(`/users/${id}`, data);
     return response.data;
+  },
+  archiveUser: async (id: number): Promise<void> => {
+    await httpClient.delete(`/users/${id}/archive`);
+  },
+  deactivateUser: async (id: number): Promise<void> => {
+    await httpClient.delete(`/users/${id}`);
   },
   
   // --- Pedidos ---
@@ -41,13 +41,8 @@ export const adminApi = {
     const response = await httpClient.put(`/custom-designs/${id}`, data);
     return response.data;
   },
-  toggleCustomDesignActivation: async (id: number): Promise<CustomDesign> => {
-    const response = await httpClient.put(`/custom-designs/${id}/toggle-activation`);
-    return response.data;
-  },
-  toggleCustomDesignPublicStatus: async (id: number): Promise<CustomDesign> => {
-    const response = await httpClient.put(`/custom-designs/${id}/toggle-public`);
-    return response.data;
+  archiveCustomDesign: async (id: number): Promise<void> => {
+    await httpClient.delete(`/custom-designs/${id}/archive`);
   },
 
   // --- Productos Base ---
@@ -63,6 +58,9 @@ export const adminApi = {
     const response = await httpClient.put(`/products/${id}`, data);
     return response.data;
   },
+  archiveProduct: async (id: number): Promise<void> => {
+    await httpClient.delete(`/products/${id}/archive`);
+  },
 
   // --- Diseños (Estampas) ---
   getAllDesigns: async (): Promise<Design[]> => {
@@ -77,6 +75,9 @@ export const adminApi = {
     const response = await httpClient.put(`/designs/${id}`, data);
     return response.data;
   },
+  archiveDesign: async (id: number): Promise<void> => {
+    await httpClient.delete(`/designs/${id}/archive`);
+  },
 
   // --- Categorías de Diseño ---
   getAllCategories: async (): Promise<Category[]> => {
@@ -90,5 +91,11 @@ export const adminApi = {
   updateCategory: async (id: number, data: Partial<Category>): Promise<Category> => {
       const response = await httpClient.put(`/design-categories/${id}`, data);
       return response.data;
+  },
+  deactivateCategory: async (id: number): Promise<void> => {
+      await httpClient.delete(`/design-categories/${id}`);
+  },
+  archiveCategory: async (id: number): Promise<void> => {
+      await httpClient.delete(`/design-categories/${id}/archive`);
   },
 };
