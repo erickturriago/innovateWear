@@ -25,7 +25,7 @@ export class StringIncludesPropertyFilter<T> implements Filter<T> {
     if (!this.query) return items;
     const lowerCaseQuery = this.query.toLowerCase();
     return items.filter(item => {
-      const value = getNestedProperty(item, this.key); // <-- MEJORA
+      const value = getNestedProperty(item, this.key);
       if (typeof value === 'string') {
         return value.toLowerCase().includes(lowerCaseQuery);
       }
@@ -45,7 +45,7 @@ export class ExactPropertyFilter<T> implements Filter<T> {
             return items;
         }
         return items.filter(item => {
-            const propValue = getNestedProperty(item, this.key); // <-- MEJORA
+            const propValue = getNestedProperty(item, this.key);
             return propValue === this.value;
         });
     }
@@ -54,7 +54,7 @@ export class ExactPropertyFilter<T> implements Filter<T> {
 /**
  * Decorador (Decorator): Invierte el resultado de un filtro.
  */
-export class NotFilter<T> implements Filter<T> {
+export class NotFilter<T extends { id: any }> implements Filter<T> {
     constructor(private filter: Filter<T>) {}
 
     apply(items: T[]): T[] {
@@ -77,14 +77,18 @@ export class AndFilter<T> implements Filter<T> {
 
 /**
  * Compuesto (Composite): Aplica filtros con lógica OR.
+ * --- CORRECCIÓN: Se añade la restricción "T extends { id: any }" ---
  */
-export class OrFilter<T> implements Filter<T> {
+export class OrFilter<T extends { id: any }> implements Filter<T> {
     private filters: Filter<T>[] = [];
     public add(filter: Filter<T>): void { this.filters.push(filter); }
     public apply(items: T[]): T[] {
         if (this.filters.length === 0) return items;
+
         const allResults = this.filters.flatMap(filter => filter.apply(items));
+      
         const uniqueResults = Array.from(new Map(allResults.map(item => [item.id, item])).values());
+
         return uniqueResults;
     }
 }
