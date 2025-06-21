@@ -2,15 +2,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Alert, Skeleton, Paper, TextField, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import ProductCard from '../components/ProductCard';
-// ¡CAMBIO IMPORTANTE! Se importa el api de diseños personalizados.
 import customDesignApi from '../api/customDesignApi';
 import type { TShirt } from '../models/TShirt';
+import { AndFilter, TextPropertyFilter } from '../patterns/composite/Filter'; // Importamos el patrón
 
 const TShirtsPage = () => {
   const [allTshirts, setAllTshirts] = useState<TShirt[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('default');
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,8 +18,7 @@ const TShirtsPage = () => {
     const loadTshirts = async () => {
       try {
         setLoading(true);
-        // ¡AQUÍ ESTÁ EL CAMBIO! Se llama a la nueva función
-        const tshirtsData = await customDesignApi.getPublicDesigns(); 
+        const tshirtsData = await customDesignApi.getPublicDesigns();
         setAllTshirts(tshirtsData);
       } catch (err) {
         setError('Error al cargar el catálogo de camisetas.');
@@ -29,14 +28,17 @@ const TShirtsPage = () => {
     };
     loadTshirts();
   }, []);
-  
+
   const processedTshirts = useMemo(() => {
-    let filtered = allTshirts.filter(tshirt =>
-      tshirt.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // --- LÓGICA DE FILTRADO CON COMPOSITE ---
+    const filter = new AndFilter<TShirt>();
+    if (searchQuery) {
+      filter.add(new TextPropertyFilter<TShirt>('title', searchQuery));
+    }
+    const filtered = filter.apply(allTshirts);
+    // --- FIN DEL FILTRADO ---
 
     const sorted = [...filtered];
-
     switch (sortOption) {
       case 'price-asc':
         sorted.sort((a, b) => a.price - b.price);
@@ -47,10 +49,7 @@ const TShirtsPage = () => {
       case 'name-asc':
         sorted.sort((a, b) => a.title.localeCompare(b.title));
         break;
-      default:
-        break;
     }
-    
     return sorted;
   }, [allTshirts, searchQuery, sortOption]);
 
@@ -95,7 +94,7 @@ const TShirtsPage = () => {
           </Select>
         </FormControl>
       </Paper>
-      
+
       {error && <Alert severity="error">{error}</Alert>}
 
       {loading ? (
@@ -108,9 +107,9 @@ const TShirtsPage = () => {
             ))}
           </Box>
           {processedTshirts.length === 0 && !loading && (
-              <Typography sx={{ mt: 4, textAlign: 'center' }}>
-                No se encontraron camisetas que coincidan con tus criterios.
-              </Typography>
+            <Typography sx={{ mt: 4, textAlign: 'center' }}>
+              No se encontraron camisetas que coincidan con tus criterios.
+            </Typography>
           )}
         </Box>
       )}

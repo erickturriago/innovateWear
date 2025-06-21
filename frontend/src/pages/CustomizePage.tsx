@@ -1,19 +1,24 @@
 // src/pages/CustomizePage.tsx
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Button, Tooltip, ToggleButtonGroup, ToggleButton,
   IconButton, TextField, Select, MenuItem, FormControl, InputLabel,
   CircularProgress, SelectChangeEvent,
-  Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText
+  Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText, Stack
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import UndoIcon from '@mui/icons-material/Undo';
+import RedoIcon from '@mui/icons-material/Redo';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva';
 import Konva from 'konva';
 
+import { EditorOriginator } from '../patterns/memento/Originator';
+import { HistoryCaretaker } from '../patterns/memento/Caretaker';
 import designApi from '../api/designApi';
 import tshirtApi from '../api/tshirtApi';
 import categoryApi, { type DesignCategory } from '../api/categoryApi';
@@ -29,8 +34,6 @@ import type { TShirt } from '../models/TShirt';
 import type { TShirtSize, CustomCartItem } from '../models/CartItem';
 import { BaseGarmentPrice, PrintPriceDecorator, type PricedItem } from '../patterns/decorator/PriceDecorator';
 
-
-// Hook personalizado para cargar imágenes
 const useImage = (url: string, crossOrigin: string = 'Anonymous'): [HTMLImageElement | undefined] => {
     const [image, setImage] = useState<HTMLImageElement>();
     useEffect(() => {
@@ -46,7 +49,6 @@ const useImage = (url: string, crossOrigin: string = 'Anonymous'): [HTMLImageEle
     return [image];
 };
 
-// Componente para una estampa individual, con su transformador
 const StampImage = ({ shapeProps, isSelected, onSelect, onChange }: any) => {
     const shapeRef = useRef<Konva.Image>(null);
     const trRef = useRef<Konva.Transformer>(null);
@@ -110,38 +112,53 @@ const CustomizePage = () => {
   const { user, isArtist } = useAuth();
   const showNotification = useNotificationStore(state => state.showNotification);
 
-  const [stamps, setStamps] = useState<any[]>([]);
-  const [selectedId, selectShape] = useState<string | null>(null);
+  const [_, forceUpdate] = useState(0); 
+  const originator = useRef(new EditorOriginator<any[]>([]));
+  const caretaker = useRef(new HistoryCaretaker(originator.current));
 
+  const stamps = originator.current.getState();
+  
+  const [selectedId, selectShape] = useState<string | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const stageContainerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 500, height: 500 });
-  
   const [groupedGarments, setGroupedGarments] = useState<GroupedGarment[]>([]);
   const [prints, setPrints] = useState<Print[]>([]);
   const [categories, setCategories] = useState<DesignCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
   const [selectedGroup, setSelectedGroup] = useState<GroupedGarment | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<TShirt | null>(null);
   const [tshirtImage] = useImage(selectedVariant?.image || '');
-  
   const [tshirtImageSize, setTshirtImageSize] = useState({ width: 0, height: 0, x: 0, y: 0 });
-
   const [selectedSize, setSelectedSize] = useState<TShirtSize>('M');
   const [quantity, setQuantity] = useState(1);
   const [printFilters, setPrintFilters] = useState({ query: '', categoryId: 'all' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
   const [designInfo, setDesignInfo] = useState({ name: '', description: '', price: '' });
-
   const [currentPrice, setCurrentPrice] = useState(0);
-
   const [builder] = useState(() => new CustomTshirtBuilder());
   const addProductToCart = useCartStore((state) => state.addProduct);
+  const colorHexMap: { [key: string]: string } = { rojo: '#FF0000', azul: '#0000FF', amarillo: '#FFFF00', naranja: '#FFA500', verde: '#008000', morado: '#800080', blanco: '#FFFFFF', negro: '#000000', gris: '#808080', rosado: '#FFC0CB', cian: '#00FFFF', turquesa: '#40E0D0', lila: '#C8A2C8', vino: '#8B0000', beige: '#F5F5DC', marron: '#8B4513', celeste: '#87CEEB', dorado: '#FFD700', plateado: '#C0C0C0' }
 
-  const colorHexMap: { [key: string]: string } = { 'blanco': '#FFFFFF', 'negro': '#222222', 'gris': '#888888', 'rojo': '#B71C1C', 'azul': '#0D47A1' };
+  const updateStamps = useCallback((newStamps: any[] | ((prevStamps: any[]) => any[])) => {
+    const currentState = originator.current.getState();
+    const resolvedState = typeof newStamps === 'function' ? newStamps(currentState) : newStamps;
+    
+    originator.current.setState(resolvedState);
+    caretaker.current.backup();
+    forceUpdate(val => val + 1);
+  }, []);
+
+  const undo = useCallback(() => {
+    caretaker.current.undo();
+    forceUpdate(val => val + 1);
+  }, []);
+
+  const redo = useCallback(() => {
+    caretaker.current.redo();
+    forceUpdate(val => val + 1);
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -177,7 +194,6 @@ const CustomizePage = () => {
     loadData();
   }, [showNotification]);
 
-
   useEffect(() => {
     const handleResize = () => {
         if (stageContainerRef.current) {
@@ -190,7 +206,6 @@ const CustomizePage = () => {
                 const ratio = Math.min((stageWidth * 0.9) / tshirtImage.width, (stageHeight * 0.9) / tshirtImage.height);
                 const imgWidth = tshirtImage.width * ratio;
                 const imgHeight = tshirtImage.height * ratio;
-
                 setTshirtImageSize({
                     width: imgWidth,
                     height: imgHeight,
@@ -251,7 +266,7 @@ const CustomizePage = () => {
         setSelectedGroup(newGroup);
         setSelectedVariant(newGroup.variants[0]);
         builder.resetPrints();
-        setStamps([]);
+        updateStamps([]);
       }
     }
   };
@@ -267,9 +282,21 @@ const CustomizePage = () => {
         rotation: 0,
         id: `stamp-${Date.now()}`
     };
-    setStamps(prevStamps => [...prevStamps, newStamp]);
+    updateStamps(prevStamps => [...prevStamps, newStamp]);
   };
   
+  const handleDeleteStamp = () => {
+    if (!selectedId) return;
+    updateStamps(stamps.filter(stamp => stamp.id !== selectedId));
+    selectShape(null);
+  };
+
+  const handleStampChange = (newAttrs: any, index: number) => {
+    const newStamps = [...stamps];
+    newStamps[index] = newAttrs;
+    updateStamps(newStamps);
+  };
+
   const generateFinalImage = (): Promise<string> => {
     const stage = stageRef.current;
     if (!stage) return Promise.reject("El canvas no está listo");
@@ -278,10 +305,7 @@ const CustomizePage = () => {
 
     return new Promise(resolve => {
         setTimeout(() => {
-            const dataURL = stage.toDataURL({
-                ...tshirtImageSize,
-                pixelRatio: 2
-            });
+            const dataURL = stage.toDataURL({ ...tshirtImageSize, pixelRatio: 2 });
             resolve(dataURL);
         }, 100);
     });
@@ -338,10 +362,7 @@ const CustomizePage = () => {
           quantity: quantity,
           price: currentPrice * quantity,
           unitPrice: currentPrice,
-          displayData: {
-            name: savedCustomDesign.name,
-            image: savedCustomDesign.previewImageUrl,
-          }
+          displayData: { name: savedCustomDesign.name, image: savedCustomDesign.previewImageUrl }
         };
         addProductToCart(cartItem);
         showNotification('¡Tu diseño personalizado fue añadido al carrito!', 'success');
@@ -400,8 +421,8 @@ const CustomizePage = () => {
                 </Paper>
             )}
             
-            <Paper elevation={2} sx={{ p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="h6" gutterBottom>{isArtist?"2. Añade Estampas":"3. Añade Estampas"}</Typography>
+            <Paper elevation={2} sx={{ p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0 }}>
+                <Typography variant="h6" gutterBottom>{isArtist?"2.":"3."} Añade Estampas</Typography>
                 <Box display="flex" gap={2} mb={2}>
                     <TextField label="Buscar..." variant="outlined" size="small" fullWidth onChange={e => setPrintFilters(f => ({ ...f, query: e.target.value }))} />
                     <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -412,7 +433,6 @@ const CustomizePage = () => {
                         </Select>
                     </FormControl>
                 </Box>
-                
                 <Box sx={{ height: isArtist? '500px':'270px', overflowY: 'auto', pr: 1 }}>
                     <Box display="grid" gap={2} gridTemplateColumns="repeat(auto-fill, minmax(80px, 1fr))">
                         {availablePrints.map(print => (
@@ -425,7 +445,7 @@ const CustomizePage = () => {
                     </Box>
                 </Box>
             </Paper>
-
+            
             {!isArtist && (
               <Paper elevation={2} sx={{ p: 2, borderRadius: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -449,7 +469,21 @@ const CustomizePage = () => {
             </Button>
         </Box>
 
-        <Box sx={{ flex: '1 1 auto', minHeight: { xs: '60vh', md: '80vh' } }}>
+        <Box sx={{ flex: '1 1 auto', minHeight: { xs: '60vh', md: '80vh' }, position: 'relative' }}>
+            <Paper sx={{ position: 'absolute', top: 16, right: 16, zIndex: 10, p: 0.5 }}>
+                <Stack direction="row" spacing={0.5}>
+                    <Tooltip title="Deshacer">
+                        <span><IconButton onClick={undo} disabled={!caretaker.current.canUndo()}><UndoIcon /></IconButton></span>
+                    </Tooltip>
+                    <Tooltip title="Rehacer">
+                        <span><IconButton onClick={redo} disabled={!caretaker.current.canRedo()}><RedoIcon /></IconButton></span>
+                    </Tooltip>
+                    <Tooltip title="Eliminar Estampa">
+                         <span><IconButton onClick={handleDeleteStamp} disabled={!selectedId} color="error"><DeleteIcon /></IconButton></span>
+                    </Tooltip>
+                </Stack>
+            </Paper>
+
           <Paper
             ref={stageContainerRef}
             sx={{ height: '100%', width: '100%', borderRadius: 3, overflow: 'hidden', background: '#f0f0f0' }}
@@ -467,15 +501,11 @@ const CustomizePage = () => {
                 <Layer>
                     {stamps.map((stamp, i) => (
                         <StampImage
-                            key={i}
+                            key={stamp.id}
                             shapeProps={stamp}
                             isSelected={stamp.id === selectedId}
                             onSelect={() => selectShape(stamp.id)}
-                            onChange={(newAttrs: any) => {
-                                const newStamps = stamps.slice();
-                                newStamps[i] = newAttrs;
-                                setStamps(newStamps);
-                            }}
+                            onChange={(newAttrs: any) => handleStampChange(newAttrs, i)}
                         />
                     ))}
                 </Layer>
@@ -490,49 +520,13 @@ const CustomizePage = () => {
           <DialogContentText sx={{mb: 2}}>
             Dale un nombre y precio a tu nueva creación para que aparezca en la tienda.
           </DialogContentText>
-          <TextField
-            autoFocus
-            required
-            margin="dense"
-            id="name"
-            label="Nombre del Producto"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={designInfo.name}
-            onChange={(e) => setDesignInfo({...designInfo, name: e.target.value})}
-          />
-          <TextField
-            margin="dense"
-            id="description"
-            label="Descripción Corta (Opcional)"
-            type="text"
-            fullWidth
-            multiline
-            rows={2}
-            variant="outlined"
-            value={designInfo.description}
-            onChange={(e) => setDesignInfo({...designInfo, description: e.target.value})}
-          />
-          <TextField
-            required
-            margin="dense"
-            id="price"
-            label="Precio de Venta (COP)"
-            type="number"
-            fullWidth
-            variant="outlined"
-            value={designInfo.price}
-            onChange={(e) => setDesignInfo({...designInfo, price: e.target.value})}
-          />
+          <TextField autoFocus required margin="dense" id="name" label="Nombre del Producto" type="text" fullWidth variant="outlined" value={designInfo.name} onChange={(e) => setDesignInfo({...designInfo, name: e.target.value})} />
+          <TextField margin="dense" id="description" label="Descripción Corta (Opcional)" type="text" fullWidth multiline rows={2} variant="outlined" value={designInfo.description} onChange={(e) => setDesignInfo({...designInfo, description: e.target.value})} />
+          <TextField required margin="dense" id="price" label="Precio de Venta (COP)" type="number" fullWidth variant="outlined" value={designInfo.price} onChange={(e) => setDesignInfo({...designInfo, price: e.target.value})} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSaveDialogOpen(false)}>Cancelar</Button>
-          <Button 
-            onClick={handleFinalAction} 
-            variant="contained"
-            disabled={!designInfo.name || !designInfo.price}
-          >
+          <Button onClick={handleFinalAction} variant="contained" disabled={!designInfo.name || !designInfo.price}>
             Confirmar y Guardar
           </Button>
         </DialogActions>

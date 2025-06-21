@@ -3,56 +3,74 @@ import { useState, useEffect, useMemo } from 'react';
 import { Box, Typography, Alert, Skeleton, Paper, TextField, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import PrintCard from '../components/ui/PrintCard';
 import designApi from '../api/designApi';
+import categoryApi, { type DesignCategory } from '../api/categoryApi'; // 1. Importar la API de categorías
 import type { Print } from '../models/Print';
+import { AndFilter, TextPropertyFilter } from '../patterns/composite/Filter';
 
 const PrintsPage = () => {
   const [allPrints, setAllPrints] = useState<Print[]>([]);
+  const [categories, setCategories] = useState<DesignCategory[]>([]); // 2. Nuevo estado para guardar las categorías
+  
+  // Estados para los filtros
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all'); // 3. Nuevo estado para el filtro de categoría
   const [sortOption, setSortOption] = useState('default');
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 4. useEffect actualizado para cargar tanto estampas como categorías
   useEffect(() => {
-    const loadPrints = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const printsData = await designApi.getAll();
+        const [printsData, categoriesData] = await Promise.all([
+          designApi.getAll(),
+          categoryApi.getAll()
+        ]);
         setAllPrints(printsData);
+        setCategories(categoriesData);
       } catch (err) {
-        setError('Error al cargar el catálogo de estampas.');
+        setError('Error al cargar los datos del catálogo.');
       } finally {
         setLoading(false);
       }
     };
-    loadPrints();
+    loadData();
   }, []);
 
+  // 5. useMemo actualizado para usar el filtro compuesto con múltiples criterios
   const processedPrints = useMemo(() => {
-    let filtered = allPrints.filter(print =>
-      print.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const compositeFilter = new AndFilter<Print>();
+
+    if (searchQuery) {
+      compositeFilter.add(new TextPropertyFilter('title', searchQuery));
+    }
+
+    if (selectedCategory !== 'all') {
+      compositeFilter.add(new TextPropertyFilter('category', selectedCategory));
+    }
+
+    const filtered = compositeFilter.apply(allPrints);
 
     const sorted = [...filtered];
-
     switch (sortOption) {
-      // Se elimina el caso 'likes-desc'
       case 'author-asc':
         sorted.sort((a, b) => a.author.localeCompare(b.author));
         break;
-      case 'name-asc': // Añadimos una nueva opción para ordenar por nombre de la estampa
+      case 'name-asc':
         sorted.sort((a, b) => a.title.localeCompare(b.title));
         break;
-      default:
-        // Por defecto, se mantiene el orden de la API
-        break;
     }
-
     return sorted;
-  }, [allPrints, searchQuery, sortOption]);
+  }, [allPrints, searchQuery, selectedCategory, sortOption]);
 
   const handleSortChange = (event: SelectChangeEvent) => {
     setSortOption(event.target.value as string);
+  };
+  
+  const handleCategoryFilterChange = (event: SelectChangeEvent) => {
+    setSelectedCategory(event.target.value as string);
   };
 
   const renderSkeletons = (count = 8) => (
@@ -82,11 +100,22 @@ const PrintsPage = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        
+        {/* --- 6. NUEVO FILTRO DE CATEGORÍA EN LA UI --- */}
+        <FormControl size="small" sx={{ minWidth: '180px' }}>
+          <InputLabel>Categoría</InputLabel>
+          <Select label="Categoría" value={selectedCategory} onChange={handleCategoryFilterChange}>
+            <MenuItem value="all">Todas</MenuItem>
+            {categories.map(cat => (
+              <MenuItem key={cat.id} value={cat.name}>{cat.name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
         <FormControl size="small" sx={{ minWidth: '180px' }}>
           <InputLabel>Ordenar por</InputLabel>
           <Select label="Ordenar por" value={sortOption} onChange={handleSortChange}>
             <MenuItem value="default">Por Defecto</MenuItem>
-            {/* Se elimina la opción de "Más populares" */}
             <MenuItem value="name-asc">Nombre: A-Z</MenuItem>
             <MenuItem value="author-asc">Artista: A-Z</MenuItem>
           </Select>
