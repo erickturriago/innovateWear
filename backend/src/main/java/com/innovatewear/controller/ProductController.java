@@ -83,4 +83,14 @@ public class ProductController {
             return ResponseFactory.notFound();
         }
     }
+
+    @DeleteMapping("/{id}/archive")
+    public ResponseEntity<Void> archiveProduct(@PathVariable Long id) {
+        try {
+            productService.archiveProduct(id);
+            return ResponseFactory.noContent();
+        } catch (Exception e) {
+            return ResponseFactory.notFound();
+        }
+    }
 }

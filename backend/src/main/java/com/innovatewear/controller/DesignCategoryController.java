@@ -83,4 +83,14 @@ public class DesignCategoryController {
             return ResponseFactory.notFound();
         }
     }
+
+    @DeleteMapping("/{id}/archive")
+    public ResponseEntity<Void> archiveProduct(@PathVariable Long id) {
+        try {
+            designCategoryService.archiveCategory(id);
+            return ResponseFactory.noContent();
+        } catch (Exception e) {
+            return ResponseFactory.notFound();
+        }
+    }
 }

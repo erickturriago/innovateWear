@@ -14,6 +14,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     
     // Buscar productos activos
     List<Product> findByActiveTrue();
+
+    List<Product> findByIsArchivedFalse();
     
     // Buscar por tipo (antes categoría)
     List<Product> findByType(String type);

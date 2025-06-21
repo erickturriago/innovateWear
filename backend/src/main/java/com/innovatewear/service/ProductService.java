@@ -3,12 +3,14 @@ package com.innovatewear.service;
 import com.innovatewear.entity.Product;
 import com.innovatewear.repository.ProductRepository;
 import com.innovatewear.service.template.BaseEntityService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService extends BaseEntityService<Product, Long> {
@@ -84,7 +86,9 @@ public class ProductService extends BaseEntityService<Product, Long> {
 
     // Obtener todos los productos
     public List<Product> getAllProducts() {
-        return getAllEntities(); // Usa método del template
+        return getAllEntities().stream()
+                .filter(product -> product.getIsArchived() != null && !product.getIsArchived())
+                .collect(Collectors.toList());
     }
 
     // Obtener solo productos activos
@@ -155,5 +159,13 @@ public class ProductService extends BaseEntityService<Product, Long> {
     // Verificar si existe producto
     public boolean existsById(Long id) {
         return super.existsById(id); // Usa metodo del template
+    }
+
+    public void archiveProduct(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado con ID: " + id));
+        product.setIsArchived(true);
+        product.setActive(false);
+        productRepository.save(product);
     }
 }
