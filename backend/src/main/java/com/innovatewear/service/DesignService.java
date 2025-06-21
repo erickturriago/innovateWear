@@ -6,107 +6,145 @@ import com.innovatewear.entity.User;
 import com.innovatewear.repository.DesignRepository;
 import com.innovatewear.repository.DesignCategoryRepository;
 import com.innovatewear.repository.UserRepository;
+import com.innovatewear.service.template.BaseEntityService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
-
+import com.innovatewear.service.strategy.DesignSearchContext;
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class DesignService {
-    
+public class DesignService extends BaseEntityService<Design, Long> {
+
     @Autowired
     private DesignRepository designRepository;
-    
+
     @Autowired
     private DesignCategoryRepository designCategoryRepository;
-    
+
     @Autowired
     private UserRepository userRepository;
-    
-    // Obtener todos los diseños
-    public List<Design> getAllDesigns() {
-        return designRepository.findAll();
+
+    // Template method implementations
+    @Override
+    protected JpaRepository<Design, Long> getRepository() {
+        return designRepository;
     }
-    
-    // Obtener solo diseños activos
-    public List<Design> getActiveDesigns() {
-        return designRepository.findByActiveTrue();
+
+    @Override
+    protected String getEntityName() {
+        return "Diseño";
     }
-    
-    // Obtener diseño por ID
-    public Optional<Design> getDesignById(Long id) {
-        return designRepository.findById(id);
-    }
-    
-    // Obtener diseño activo por ID
-    public Optional<Design> getActiveDesignById(Long id) {
-        return designRepository.findById(id)
-                .filter(Design::getActive);
-    }
-    
-    // Crear nuevo diseño
-    public Design createDesign(Design design) {
+
+    @Override
+    protected void validateBeforeCreate(Design design) {
         // Verificar que la categoría existe y está activa
         if (design.getCategory() != null && design.getCategory().getId() != null) {
             Optional<DesignCategory> category = designCategoryRepository.findById(design.getCategory().getId());
             if (category.isEmpty() || !category.get().getActive()) {
                 throw new RuntimeException("Categoría no encontrada o inactiva");
             }
-            design.setCategory(category.get());
         }
-        
+
         // Verificar que el artista existe y está activo
         if (design.getArtist() != null && design.getArtist().getId() != null) {
             Optional<User> artist = userRepository.findById(design.getArtist().getId());
             if (artist.isEmpty() || !artist.get().getActive()) {
                 throw new RuntimeException("Artista no encontrado o inactivo");
             }
-            design.setArtist(artist.get());
         }
-        
-        return designRepository.save(design);
     }
-    
-    // Actualizar diseño existente
-    public Design updateDesign(Long id, Design designDetails) {
-        Design existingDesign = designRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Diseño no encontrado con ID: " + id));
 
-        if (designDetails.getName() != null) existingDesign.setName(designDetails.getName());
-        if (designDetails.getDescription() != null) existingDesign.setDescription(designDetails.getDescription());
-        if (designDetails.getPrice() != null) existingDesign.setPrice(designDetails.getPrice());
-        if (designDetails.getImageUrl() != null) existingDesign.setImageUrl(designDetails.getImageUrl());
-        if (designDetails.getActive() != null) existingDesign.setActive(designDetails.getActive());
-
+    @Override
+    protected void validateBeforeUpdate(Long id, Design designDetails) {
+        // Validar categoría si se está actualizando
         if (designDetails.getCategory() != null && designDetails.getCategory().getId() != null) {
-            DesignCategory category = designCategoryRepository.findById(designDetails.getCategory().getId())
-                    .orElseThrow(() -> new RuntimeException("Categoría no encontrada o inactiva"));
-            existingDesign.setCategory(category);
-        }
-        if (designDetails.getArtist() != null && designDetails.getArtist().getId() != null) {
-            User artist = userRepository.findById(designDetails.getArtist().getId())
-                    .orElseThrow(() -> new RuntimeException("Artista no encontrado o inactivo"));
-            existingDesign.setArtist(artist);
+            Optional<DesignCategory> category = designCategoryRepository.findById(designDetails.getCategory().getId());
+            if (category.isEmpty() || !category.get().getActive()) {
+                throw new RuntimeException("Categoría no encontrada o inactiva");
+            }
         }
 
-        return designRepository.save(existingDesign);
-    }
-    
-    // Desactivar diseño (borrado lógico)
-    public void deactivateDesign(Long id) {
-        Optional<Design> optionalDesign = designRepository.findById(id);
-        
-        if (optionalDesign.isPresent()) {
-            Design design = optionalDesign.get();
-            design.setActive(false);
-            designRepository.save(design);
-        } else {
-            throw new RuntimeException("Diseño no encontrado con ID: " + id);
+        // Validar artista si se está actualizando
+        if (designDetails.getArtist() != null && designDetails.getArtist().getId() != null) {
+            Optional<User> artist = userRepository.findById(designDetails.getArtist().getId());
+            if (artist.isEmpty() || !artist.get().getActive()) {
+                throw new RuntimeException("Artista no encontrado o inactivo");
+            }
         }
     }
-    
-    // Eliminar diseño físicamente
+
+    @Override
+    protected void updateEntityFields(Design existing, Design details) {
+        if (details.getName() != null) existing.setName(details.getName());
+        if (details.getDescription() != null) existing.setDescription(details.getDescription());
+        if (details.getPrice() != null) existing.setPrice(details.getPrice());
+        if (details.getImageUrl() != null) existing.setImageUrl(details.getImageUrl());
+        if (details.getActive() != null) existing.setActive(details.getActive());
+
+        if (details.getCategory() != null && details.getCategory().getId() != null) {
+            DesignCategory category = designCategoryRepository.findById(details.getCategory().getId())
+                    .orElseThrow(() -> new RuntimeException("Categoría no encontrada o inactiva"));
+            existing.setCategory(category);
+        }
+
+        if (details.getArtist() != null && details.getArtist().getId() != null) {
+            User artist = userRepository.findById(details.getArtist().getId())
+                    .orElseThrow(() -> new RuntimeException("Artista no encontrado o inactivo"));
+            existing.setArtist(artist);
+        }
+    }
+
+    @Override
+    protected void setEntityInactive(Design design) {
+        design.setActive(false);
+    }
+
+    @Override
+    protected void performAdditionalCreateValidations(Design design) {
+        // Set entities from IDs after basic validations
+        if (design.getCategory() != null && design.getCategory().getId() != null) {
+            DesignCategory category = designCategoryRepository.findById(design.getCategory().getId()).get();
+            design.setCategory(category);
+        }
+
+        if (design.getArtist() != null && design.getArtist().getId() != null) {
+            User artist = userRepository.findById(design.getArtist().getId()).get();
+            design.setArtist(artist);
+        }
+    }
+
+    // Public methods using template methods
+    public List<Design> getAllDesigns() {
+        return getAllEntities();
+    }
+
+    public List<Design> getActiveDesigns() {
+        return designRepository.findByActiveTrue();
+    }
+
+    public Optional<Design> getDesignById(Long id) {
+        return getEntityById(id);
+    }
+
+    public Optional<Design> getActiveDesignById(Long id) {
+        return designRepository.findById(id)
+                .filter(Design::getActive);
+    }
+
+    public Design createDesign(Design design) {
+        return createEntity(design);
+    }
+
+    public Design updateDesign(Long id, Design designDetails) {
+        return updateEntity(id, designDetails);
+    }
+
+    public void deactivateDesign(Long id) {
+        deactivateEntity(id);
+    }
+
     public void deleteDesign(Long id) {
         if (designRepository.existsById(id)) {
             designRepository.deleteById(id);
@@ -114,49 +152,38 @@ public class DesignService {
             throw new RuntimeException("Diseño no encontrado con ID: " + id);
         }
     }
-    
-    // Buscar diseños por categoría
+
     public List<Design> getDesignsByCategory(Long categoryId) {
         return designRepository.findByCategoryIdAndActiveTrue(categoryId);
     }
-    
-    // Buscar diseños por artista
+
     public List<Design> getDesignsByArtist(Long artistId) {
         return designRepository.findByArtistIdAndActiveTrue(artistId);
     }
-    
-    // Buscar diseños por nombre
+
     public List<Design> searchDesignsByName(String name) {
         return designRepository.findByNameContainingIgnoreCaseAndActiveTrue(name);
     }
-    
-    // Buscar con filtros múltiples (implementación simple)
+
+    /**
+     * Busca diseños aplicando múltiples filtros usando Strategy pattern.
+     * @param categoryId ID de categoría (opcional)
+     * @param artistId ID de artista (opcional)
+     * @param name Nombre a buscar (opcional)
+     * @return Lista de diseños que cumplen todos los criterios
+     */
     public List<Design> searchDesigns(Long categoryId, Long artistId, String name) {
-        List<Design> designs = designRepository.findByActiveTrue();
-        
-        if (categoryId != null) {
-            designs = designs.stream()
-                .filter(d -> d.getCategory().getId().equals(categoryId))
-                .toList();
-        }
-        
-        if (artistId != null) {
-            designs = designs.stream()
-                .filter(d -> d.getArtist().getId().equals(artistId))
-                .toList();
-        }
-        
-        if (name != null && !name.trim().isEmpty()) {
-            designs = designs.stream()
-                .filter(d -> d.getName().toLowerCase().contains(name.toLowerCase()))
-                .toList();
-        }
-        
-        return designs;
+        // Obtener diseños activos como base
+        List<Design> baseDesigns = designRepository.findByActiveTrue();
+
+        // Crear contexto con strategies apropiadas
+        DesignSearchContext searchContext = DesignSearchContext.createWithFilters(categoryId, artistId);
+
+        // Ejecutar búsqueda con todas las strategies configuradas
+        return searchContext.executeSearch(baseDesigns, name);
     }
-    
-    // Verificar si existe diseño
+
     public boolean existsById(Long id) {
-        return designRepository.existsById(id);
+        return super.existsById(id);
     }
 }

@@ -31,24 +31,25 @@ public class CustomDesignService {
     private CustomDesignPrintRepository customDesignPrintRepository;
 
     public CustomDesign createCustomDesign(CustomDesign designFromRequest) {
+        // 1. Validaciones previas
         User creator = userRepository.findById(designFromRequest.getCreator().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Usuario creador no encontrado con ID: " + designFromRequest.getCreator().getId()));
 
         Product product = productRepository.findById(designFromRequest.getProduct().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado con ID: " + designFromRequest.getProduct().getId()));
 
-        CustomDesign newDesign = new CustomDesign();
-        newDesign.setCreator(creator);
-        newDesign.setProduct(product);
-        newDesign.setName(designFromRequest.getName());
-        newDesign.setDescription(designFromRequest.getDescription());
-        newDesign.setPrice(designFromRequest.getPrice());
-        newDesign.setIsPublic(designFromRequest.getIsPublic());
-        newDesign.setPreviewImageUrl(designFromRequest.getPreviewImageUrl());
-        newDesign.setActive(true);
+        // 2. Usar el Builder para crear el objeto CustomDesign
+        CustomDesign newDesign = new CustomDesign.CustomDesignBuilder(designFromRequest.getName(), creator, product)
+                .withDescription(designFromRequest.getDescription())
+                .withPrice(designFromRequest.getPrice())
+                .isPublic(designFromRequest.getIsPublic())
+                .withPreviewImageUrl(designFromRequest.getPreviewImageUrl())
+                .build();
 
+        // 3. Guardar el objeto base
         CustomDesign savedDesign = customDesignRepository.save(newDesign);
 
+        // 4. Lógica para asociar las estampas (sin cambios)
         if (designFromRequest.getPrints() != null && !designFromRequest.getPrints().isEmpty()) {
             List<CustomDesignPrint> persistentPrints = designFromRequest.getPrints().stream().map(printRequest -> {
                 Design stamp = designRepository.findById(printRequest.getDesign().getId())

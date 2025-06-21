@@ -2,7 +2,6 @@ package com.innovatewear.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
@@ -13,8 +12,7 @@ import java.util.List;
 @Entity
 @Table(name = "custom_designs")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor // Lombok genera el constructor sin argumentos (requerido por JPA)
 public class CustomDesign {
 
     @Id
@@ -58,6 +56,19 @@ public class CustomDesign {
     @Column(name = "preview_image_url", length = 500)
     private String previewImageUrl;
 
+    // --- Constructor privado para ser usado solo por el Builder ---
+    private CustomDesign(CustomDesignBuilder builder) {
+        this.name = builder.name;
+        this.description = builder.description;
+        this.price = builder.price;
+        this.creator = builder.creator;
+        this.product = builder.product;
+        this.isPublic = builder.isPublic;
+        this.previewImageUrl = builder.previewImageUrl;
+        this.active = true; // Valor por defecto al crear
+    }
+
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -67,5 +78,46 @@ public class CustomDesign {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // --- Patrón Builder como clase interna estática ---
+    public static class CustomDesignBuilder {
+        private String name;
+        private String description;
+        private BigDecimal price;
+        private final User creator;
+        private final Product product;
+        private Boolean isPublic;
+        private String previewImageUrl;
+
+        public CustomDesignBuilder(String name, User creator, Product product) {
+            this.name = name;
+            this.creator = creator;
+            this.product = product;
+        }
+
+        public CustomDesignBuilder withDescription(String description) {
+            this.description = description;
+            return this;
+        }
+
+        public CustomDesignBuilder withPrice(BigDecimal price) {
+            this.price = price;
+            return this;
+        }
+
+        public CustomDesignBuilder isPublic(boolean isPublic) {
+            this.isPublic = isPublic;
+            return this;
+        }
+
+        public CustomDesignBuilder withPreviewImageUrl(String url) {
+            this.previewImageUrl = url;
+            return this;
+        }
+
+        public CustomDesign build() {
+            return new CustomDesign(this);
+        }
     }
 }
