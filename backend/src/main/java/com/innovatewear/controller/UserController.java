@@ -4,10 +4,10 @@ import com.innovatewear.entity.User;
 import com.innovatewear.entity.User.UserRole;
 import com.innovatewear.service.UserService;
 import com.innovatewear.utils.JsonPrinter;
+import com.innovatewear.utils.factory.ResponseFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,10 +22,8 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // Logger manual como solicitaste
     private final Logger LOGGER = LoggerFactory.getLogger(UserController.class);
 
-    // DTOs locales definidos como records
     public record LoginRequest(String email, String password) {}
     public record RoleUpdateRequest(String newRole) {}
 
@@ -36,10 +34,10 @@ public class UserController {
 
         if (userOptional.isPresent()) {
             LOGGER.info("Login exitoso para el usuario: {}", userOptional.get().getEmail());
-            return ResponseEntity.ok(userOptional.get());
+            return ResponseFactory.success(userOptional.get());
         } else {
             LOGGER.warn("Login fallido para el email: {}", loginRequest.email());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseFactory.unauthorized();
         }
     }
 
@@ -47,25 +45,24 @@ public class UserController {
     public ResponseEntity<List<User>> getAllUsers() {
         LOGGER.info("Request para obtener todos los usuarios activos");
         List<User> users = userService.getActiveUsers();
-        return ResponseEntity.ok(users);
+        return ResponseFactory.success(users);
     }
 
     @GetMapping("/all")
     public ResponseEntity<List<User>> getAllUsersIncludingInactive() {
         LOGGER.info("Request para obtener todos los usuarios (incluyendo inactivos)");
         List<User> users = userService.getAllUsers();
-        return ResponseEntity.ok(users);
+        return ResponseFactory.success(users);
     }
 
-    // RUTA CORREGIDA: Se cambia de "/{id}" a "/detail/{id}" para evitar ambigüedad
     @GetMapping("/detail/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
         LOGGER.info("Request para obtener usuario con ID: {}", id);
         return userService.getActiveUserById(id)
-                .map(ResponseEntity::ok)
+                .map(ResponseFactory::success)
                 .orElseGet(() -> {
                     LOGGER.warn("Usuario con ID {} no encontrado.", id);
-                    return ResponseEntity.notFound().build();
+                    return ResponseFactory.notFound();
                 });
     }
 
@@ -74,10 +71,10 @@ public class UserController {
         LOGGER.info("Request para obtener usuario con email: {}", email);
         Optional<User> user = userService.getUserByEmail(email);
 
-        return user.map(ResponseEntity::ok)
+        return user.map(ResponseFactory::success)
                 .orElseGet(() -> {
                     LOGGER.warn("Usuario con email {} no encontrado.", email);
-                    return ResponseEntity.notFound().build();
+                    return ResponseFactory.notFound();
                 });
     }
 
@@ -87,10 +84,10 @@ public class UserController {
         try {
             User createdUser = userService.createUser(user);
             LOGGER.info("Usuario creado con ID: {}", createdUser.getId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+            return ResponseFactory.created(createdUser);
         } catch (Exception e) {
             LOGGER.error("Error al crear usuario: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseFactory.badRequest();
         }
     }
 
@@ -99,10 +96,10 @@ public class UserController {
         LOGGER.info("Request para actualizar usuario con ID {}: {}", id, JsonPrinter.toString(userDetails));
         try {
             User updatedUser = userService.updateUser(id, userDetails);
-            return ResponseEntity.ok(updatedUser);
+            return ResponseFactory.success(updatedUser);
         } catch (Exception e) {
             LOGGER.error("Error al actualizar usuario con ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseFactory.badRequest();
         }
     }
 
@@ -112,13 +109,13 @@ public class UserController {
         try {
             UserRole newRole = UserRole.valueOf(roleUpdate.newRole().toUpperCase());
             User updatedUser = userService.changeUserRole(id, newRole);
-            return ResponseEntity.ok(updatedUser);
+            return ResponseFactory.success(updatedUser);
         } catch (IllegalArgumentException e) {
             LOGGER.error("Rol inválido '{}' proporcionado para el usuario con ID {}", roleUpdate.newRole(), id);
-            return ResponseEntity.badRequest().build();
+            return ResponseFactory.badRequest();
         } catch (Exception e) {
             LOGGER.error("Error al actualizar rol para usuario con ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.notFound().build();
+            return ResponseFactory.notFound();
         }
     }
 
@@ -127,10 +124,10 @@ public class UserController {
         LOGGER.info("Request para desactivar usuario con ID: {}", id);
         try {
             userService.deactivateUser(id);
-            return ResponseEntity.noContent().build();
+            return ResponseFactory.noContent();
         } catch (Exception e) {
             LOGGER.error("Error al desactivar usuario con ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.notFound().build();
+            return ResponseFactory.notFound();
         }
     }
 
@@ -139,10 +136,10 @@ public class UserController {
         LOGGER.info("Request para eliminar permanentemente al usuario con ID: {}", id);
         try {
             userService.deleteUser(id);
-            return ResponseEntity.noContent().build();
+            return ResponseFactory.noContent();
         } catch (Exception e) {
             LOGGER.error("Error al eliminar permanentemente al usuario con ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.notFound().build();
+            return ResponseFactory.notFound();
         }
     }
 
@@ -152,10 +149,10 @@ public class UserController {
         try {
             UserRole userRole = UserRole.valueOf(role.toUpperCase());
             List<User> users = userService.getUsersByRole(userRole);
-            return ResponseEntity.ok(users);
+            return ResponseFactory.success(users);
         } catch (IllegalArgumentException e) {
             LOGGER.error("Se solicitó un rol inválido: {}", role);
-            return ResponseEntity.badRequest().build();
+            return ResponseFactory.badRequest();
         }
     }
 
@@ -163,20 +160,20 @@ public class UserController {
     public ResponseEntity<List<User>> getArtists() {
         LOGGER.info("Request para obtener todos los usuarios con rol ARTISTA");
         List<User> artists = userService.getArtists();
-        return ResponseEntity.ok(artists);
+        return ResponseFactory.success(artists);
     }
 
     @GetMapping("/clients")
     public ResponseEntity<List<User>> getClients() {
         LOGGER.info("Request para obtener todos los usuarios con rol CLIENTE");
         List<User> clients = userService.getClients();
-        return ResponseEntity.ok(clients);
+        return ResponseFactory.success(clients);
     }
 
     @GetMapping("/search")
     public ResponseEntity<List<User>> searchUsers(@RequestParam String name) {
         LOGGER.info("Request para buscar usuarios por nombre que contenga: {}", name);
         List<User> users = userService.searchUsersByName(name);
-        return ResponseEntity.ok(users);
+        return ResponseFactory.success(users);
     }
 }

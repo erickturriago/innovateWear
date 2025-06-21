@@ -3,11 +3,11 @@ package com.innovatewear.controller;
 import com.innovatewear.entity.Order;
 import com.innovatewear.service.OrderService;
 import com.innovatewear.utils.JsonPrinter;
+import com.innovatewear.utils.factory.ResponseFactory;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,10 +29,10 @@ public class OrderController {
         try {
             Order createdOrder = orderService.createOrderFromCart(orderRequest);
             LOGGER.info("Orden creada con ID: {}", createdOrder.getId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
+            return ResponseFactory.created(createdOrder);
         } catch (Exception e) {
             LOGGER.error("Error al crear orden desde carrito: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().build();
+            return ResponseFactory.badRequest();
         }
     }
 
@@ -40,33 +40,33 @@ public class OrderController {
     public ResponseEntity<List<Order>> getAllOrders() {
         LOGGER.info("Request para obtener todas las órdenes");
         List<Order> orders = orderService.getAllOrders();
-        return ResponseEntity.ok(orders);
+        return ResponseFactory.success(orders);
     }
 
     @GetMapping("/detail/{id}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
         LOGGER.info("Request para obtener orden con ID: {}", id);
         return orderService.getOrderById(id)
-                .map(ResponseEntity::ok)
+                .map(ResponseFactory::success)
                 .orElseGet(() -> {
                     LOGGER.warn("Orden con ID {} no encontrada.", id);
-                    return ResponseEntity.notFound().build();
+                    return ResponseFactory.notFound();
                 });
     }
 
     @PutMapping("/{id}/status")
     public ResponseEntity<Order> updateOrderStatus(@PathVariable Long id, @RequestBody String newStatus) {
         LOGGER.info("Admin request para actualizar estado del pedido {} a {}", id, newStatus);
+
         try {
-            // Se corrige el tipo de 'OrderStatus' a 'Order.OrderStatus'
-            Order.OrderStatus status = Order.OrderStatus.valueOf(newStatus.toUpperCase());
-            Order updatedOrder = orderService.updateOrderStatus(id, status);
-            return ResponseEntity.ok(updatedOrder);
-        } catch (IllegalArgumentException e) {
-            LOGGER.error("Estado inválido proporcionado: {}", newStatus);
-            return ResponseEntity.badRequest().build();
+            Order updatedOrder = orderService.updateOrderStatus(id, newStatus);
+            return ResponseFactory.success(updatedOrder);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            LOGGER.error("Error de validación al actualizar estado del pedido {}: {}", id, e.getMessage());
+            return ResponseFactory.badRequest();
         } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
+            LOGGER.error("Pedido no encontrado con ID {}: {}", id, e.getMessage());
+            return ResponseFactory.notFound();
         }
     }
 }

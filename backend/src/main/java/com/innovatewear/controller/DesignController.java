@@ -3,10 +3,10 @@ package com.innovatewear.controller;
 import com.innovatewear.entity.Design;
 import com.innovatewear.service.DesignService;
 import com.innovatewear.utils.JsonPrinter;
+import com.innovatewear.utils.factory.ResponseFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,24 +26,24 @@ public class DesignController {
     public ResponseEntity<List<Design>> getAllDesigns() {
         LOGGER.info("Request para obtener todos los diseños activos");
         List<Design> designs = designService.getActiveDesigns();
-        return ResponseEntity.ok(designs);
+        return ResponseFactory.success(designs);
     }
 
     @GetMapping("/all")
     public ResponseEntity<List<Design>> getAllDesignsIncludingInactive() {
         LOGGER.info("Request para obtener todos los diseños (incluyendo inactivos)");
         List<Design> designs = designService.getAllDesigns();
-        return ResponseEntity.ok(designs);
+        return ResponseFactory.success(designs);
     }
 
     @GetMapping("/detail/{id}")
     public ResponseEntity<Design> getDesignById(@PathVariable Long id) {
         LOGGER.info("Request para obtener diseño con ID: {}", id);
         return designService.getActiveDesignById(id)
-                .map(ResponseEntity::ok)
+                .map(ResponseFactory::success)
                 .orElseGet(() -> {
                     LOGGER.warn("Diseño con ID {} no encontrado.", id);
-                    return ResponseEntity.notFound().build();
+                    return ResponseFactory.notFound();
                 });
     }
 
@@ -52,11 +52,10 @@ public class DesignController {
         LOGGER.info("Request para obtener diseños del artista con ID: {}", artistId);
         try {
             List<Design> designs = designService.getDesignsByArtist(artistId);
-            return ResponseEntity.ok(designs);
+            return ResponseFactory.success(designs);
         } catch (Exception e) {
             LOGGER.error("Error al obtener diseños para el artista con ID {}: {}", artistId, e.getMessage(), e);
-            // Puedes devolver una lista vacía o un error de servidor
-            return ResponseEntity.internalServerError().build();
+            return ResponseFactory.internalServerError();
         }
     }
 
@@ -66,10 +65,10 @@ public class DesignController {
         try {
             Design createdDesign = designService.createDesign(design);
             LOGGER.info("Diseño creado con ID: {}", createdDesign.getId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdDesign);
+            return ResponseFactory.created(createdDesign);
         } catch (Exception e) {
             LOGGER.error("Error al crear diseño: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseFactory.badRequest();
         }
     }
 
@@ -78,10 +77,10 @@ public class DesignController {
         LOGGER.info("Request para actualizar diseño con ID {}: {}", id, JsonPrinter.toString(designDetails));
         try {
             Design updatedDesign = designService.updateDesign(id, designDetails);
-            return ResponseEntity.ok(updatedDesign);
+            return ResponseFactory.success(updatedDesign);
         } catch (Exception e) {
             LOGGER.error("Error al actualizar diseño con ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseFactory.badRequest();
         }
     }
 
@@ -90,10 +89,10 @@ public class DesignController {
         LOGGER.info("Request para desactivar diseño con ID: {}", id);
         try {
             designService.deactivateDesign(id);
-            return ResponseEntity.noContent().build();
+            return ResponseFactory.noContent();
         } catch (Exception e) {
             LOGGER.error("Error al desactivar diseño con ID {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.notFound().build();
+            return ResponseFactory.notFound();
         }
     }
 }
