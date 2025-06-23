@@ -4,16 +4,19 @@ import type { CartItem } from '../models/CartItem';
 
 interface CartState {
   items: CartItem[];
+  pendingItem: CartItem | null; // <-- NUEVO ESTADO PARA RECORDAR EL ITEM
   addProduct: (newItem: CartItem) => void;
   removeProduct: (itemId: string) => void;
   updateQuantity: (itemId: string, action: 'increase' | 'decrease') => void;
   clearCart: () => void;
+  setPendingItem: (item: CartItem | null) => void; // <-- NUEVA ACCIÓN
 }
 
 export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: [],
+      pendingItem: null, // <-- VALOR INICIAL
 
       addProduct: (newItem) => {
         set((state) => {
@@ -48,7 +51,6 @@ export const useCartStore = create<CartState>()(
                   return {
                     ...item,
                     quantity: newQuantity,
-                    // RECALCULA EL PRECIO TOTAL USANDO EL PRECIO UNITARIO
                     price: item.unitPrice * newQuantity, 
                   };
                 }
@@ -63,12 +65,18 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => {
-        set({ items: [] });
+        set({ items: [], pendingItem: null }); // Aseguramos limpiar todo
+      },
+
+      // --- IMPLEMENTACIÓN DE LA NUEVA ACCIÓN ---
+      setPendingItem: (item) => {
+        set({ pendingItem: item });
       },
     }),
     {
-      // CAMBIO: Renombramos la clave para reflejar que es el carrito de la sesión activa
-      name: 'cart-session-storage',
+      name: 'cart-session-storage', // Clave para el carrito de la sesión activa
+      // No persistimos el item pendiente, es solo para la memoria de la sesión actual
+      partialize: (state) => ({ items: state.items }),
     }
   )
 );
