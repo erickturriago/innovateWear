@@ -108,7 +108,7 @@ const Header = () => {
                     src={logo}
                     alt="InnovateWear Logo"
                     sx={{ 
-                        height: 50, // <-- AJUSTE: Más grande
+                        height: 60, // <-- AJUSTE: Más grande
                         ml: 2,      // <-- AJUSTE: Margen a la izquierda para moverlo a la derecha
                         display: 'block', 
                         cursor: 'pointer' 
@@ -126,9 +126,7 @@ const Header = () => {
           </Box>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton sx={{ color: '#424242' }}><SearchIcon /></IconButton>
-            
-            {user && (user.role === 'CLIENTE' || user.role === 'ADMIN') && (
+            {user && (user.role === 'CLIENTE') && (
               <IconButton component={RouterLink} to="/checkout" sx={{ color: '#424242' }}>
                 <Badge badgeContent={totalItems} color="error"><ShoppingCartIcon /></Badge>
               </IconButton>
