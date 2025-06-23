@@ -1,4 +1,3 @@
-// src/store/cartStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CartItem } from '../models/CartItem';
@@ -68,7 +67,8 @@ export const useCartStore = create<CartState>()(
       },
     }),
     {
-      name: 'innovatewear-cart-storage',
+      // CAMBIO: Renombramos la clave para reflejar que es el carrito de la sesión activa
+      name: 'cart-session-storage',
     }
   )
 );

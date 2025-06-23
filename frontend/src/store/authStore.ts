@@ -1,15 +1,14 @@
-// src/store/authStore.ts
 import { create } from 'zustand';
 import { persist, PersistOptions } from 'zustand/middleware';
 import type { User } from '../models/User';
 import { UserFactory } from '../patterns/factory/UserFactory';
-import { FirebaseFacade } from '../patterns/facade/FirebaseFacade'; // Importar facade
+import { FirebaseFacade } from '../patterns/facade/FirebaseFacade';
+import { useCartStore } from './cartStore'; // Importamos el cartStore para la orquestación
 
 export interface AuthState {
   user: User | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
-  // --- NUEVA ACCIÓN DE LOGOUT ---
   logout: () => Promise<void>; 
 }
 
@@ -27,7 +26,7 @@ const mergeState: PersistOptions<AuthState>['merge'] = (persistedState, currentS
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isLoading: true,
       
@@ -35,14 +34,27 @@ export const useAuthStore = create<AuthState>()(
         set({ user, isLoading: false });
       },
 
-      // --- IMPLEMENTACIÓN DE LOGOUT ---
       logout: async () => {
+        // LÓGICA DE CARRITO: GUARDAR AL CERRAR SESIÓN
+        const userToLogout = get().user;
+        if (userToLogout) {
+            // Se obtiene el carrito de la sesión actual usando .items
+            const currentCart = useCartStore.getState().items; // <-- CORREGIDO
+
+            if (currentCart.length > 0) {
+                localStorage.setItem(`user-cart-${userToLogout.id}`, JSON.stringify(currentCart));
+            } else {
+                localStorage.removeItem(`user-cart-${userToLogout.id}`);
+            }
+        }
+        
         try {
-            await FirebaseFacade.signOut(); // Cierra sesión en Firebase
+            await FirebaseFacade.signOut();
         } catch (error) {
             console.error("Error al cerrar sesión en Firebase:", error);
         }
-        // Limpia el estado local inmediatamente para una respuesta de UI instantánea
+
+        useCartStore.getState().clearCart();
         set({ user: null, isLoading: false }); 
       },
     }),
@@ -52,3 +64,20 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// LÓGICA DE CARRITO: CARGAR AL INICIAR SESIÓN
+useAuthStore.subscribe((state, prevState) => {
+    // Detectamos un inicio de sesión (de null a un objeto de usuario)
+    if (!prevState.user && state.user) {
+        const userId = state.user.id;
+        const savedCartJson = localStorage.getItem(`user-cart-${userId}`);
+
+        if (savedCartJson) {
+            const savedCart = JSON.parse(savedCartJson);
+            // Se establece el carrito guardado como el estado de la sesión activa, usando .items
+            useCartStore.setState({ items: savedCart }); // <-- CORREGIDO
+        } else {
+            useCartStore.getState().clearCart();
+        }
+    }
+});

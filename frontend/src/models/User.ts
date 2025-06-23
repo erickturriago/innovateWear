@@ -1,5 +1,3 @@
-// src/models/User.ts
-
 export type UserRole = 'CLIENTE' | 'ARTISTA' | 'ADMIN';
 
 // Interfaz común para todos los usuarios
