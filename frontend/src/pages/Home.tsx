@@ -64,7 +64,7 @@ const Home = () => {
           </>
         ) : (
           <>
-            <HorizontalProductScroller title="Camisetas Populares">
+            <HorizontalProductScroller title="Camisetas Populares" titleId="popular-tshirts-heading">
               {tshirts.map((camiseta) => (
                 <Box key={camiseta.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
                   <ProductCard {...camiseta} />
@@ -75,7 +75,7 @@ const Home = () => {
               </Box>
             </HorizontalProductScroller>
 
-            <HorizontalProductScroller title="Estampas Populares">
+            <HorizontalProductScroller title="Estampas Populares" titleId="popular-prints-heading">
               {prints.map((estampa) => (
                 <Box key={estampa.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
                   <PrintCard {...estampa} />
