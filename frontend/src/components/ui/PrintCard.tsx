@@ -4,21 +4,32 @@ import {
   CardActionArea,
   CardMedia,
   CardContent,
-  Typography
+  Typography,
+  Box,
+  IconButton,
 } from '@mui/material';
-import FavoriteIcon from '@mui/icons-material/Favorite';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import type { Print } from '../../models/Print';
 
 interface PrintCardProps extends Print {
+  // Prop para la descripción corta (implícita en alt)
+
+  // Prop para la descripción larga en la página (método moderno)
+  longDescription?: string;
+  // Prop para la URL de la descripción larga (método obsoleto)
+  longDescURL?: string;
+
   onEdit?: (print: Print) => void;
   onDelete?: (id: string) => void;
 }
 
 const PrintCard = (props: PrintCardProps) => {
-  const { onEdit, onDelete, ...printData } = props;
+  const { onEdit, onDelete, longDescription, longDescURL, ...printData } = props;
   const { image, title, category, author, id } = printData;
+
+  const altText = `Estampa titulada "${title}", creada por ${author}, categoría: ${category}.`;
+  const descriptionId = `print-desc-${id}`;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,9 +52,25 @@ const PrintCard = (props: PrintCardProps) => {
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 3,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        position: 'relative',
       }}
     >
+      {(onEdit || onDelete) && (
+        <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, display: 'flex', gap: 0.5, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: '50px' }}>
+          {onEdit && (
+            <IconButton size="small" onClick={handleEdit} aria-label={`Editar la estampa ${title}`}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          )}
+          {onDelete && (
+            <IconButton size="small" onClick={handleDelete} aria-label={`Eliminar la estampa ${title}`}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          )}
+        </Box>
+      )}
+
       <CardActionArea
         component="div"
         sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}
@@ -52,8 +79,13 @@ const PrintCard = (props: PrintCardProps) => {
           component="img"
           height="200"
           image={image}
-          alt={title}
+          // 1. Atributo 'alt' (Correcto y necesario)
+          alt={altText}
           sx={{ objectFit: 'cover' }}
+          // 2. Atributo 'aria-describedby' (Método moderno y recomendado)
+          aria-describedby={longDescription ? descriptionId : undefined}
+          // 3. Atributo 'longdesc' (Obsoleto y no recomendado)
+          {...(longDescURL && { longdesc: longDescURL })}
         />
         <CardContent
           sx={{ flexGrow: 1, width: '100%', pt: 2, pb: '16px !important' }}
@@ -74,6 +106,26 @@ const PrintCard = (props: PrintCardProps) => {
           </Typography>
         </CardContent>
       </CardActionArea>
+      
+      {/* Contenedor para la descripción de 'aria-describedby' */}
+      {longDescription && (
+        <Box
+          id={descriptionId}
+          sx={{
+            position: 'absolute',
+            width: '1px',
+            height: '1px',
+            padding: 0,
+            margin: -1,
+            overflow: 'hidden',
+            clip: 'rect(0, 0, 0, 0)',
+            whiteSpace: 'nowrap',
+            border: 0,
+          }}
+        >
+          {longDescription}
+        </Box>
+      )}
     </Card>
   );
 };

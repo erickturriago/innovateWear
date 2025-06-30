@@ -14,7 +14,7 @@ const HorizontalProductScroller = ({ title, children, titleId }: HorizontalProdu
     <Box mb={6}>
       <Typography
         variant="h4"
-        component="h2"
+        component="p"
         gutterBottom
         sx={{ fontWeight: 'bold' }}
         // **** ACCESIBILIDAD: Se asigna el ID al título ****
