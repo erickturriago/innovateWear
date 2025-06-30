@@ -25,7 +25,7 @@ const headerTheme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          color: '#424242',
+          color: '#141414',
           '&:hover': {
             backgroundColor: '#eeeeee',
           },
@@ -35,7 +35,7 @@ const headerTheme = createTheme({
     MuiIconButton: {
       styleOverrides: {
         root: {
-          color: '#424242',
+          color: '#141414',
         },
       },
     },

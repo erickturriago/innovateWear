@@ -1,9 +1,9 @@
 // src/components/Header.tsx
 import { useState } from 'react';
-import { 
-  AppBar, Toolbar, IconButton, Typography, Box, Button, Drawer, List, 
-  ListItem, ListItemButton, ListItemText, Badge, CircularProgress, 
-  Menu, MenuItem, Avatar
+import {
+    AppBar, Toolbar, IconButton, Typography, Box, Button, Drawer, List,
+    ListItem, ListItemButton, ListItemText, Badge, CircularProgress,
+    Menu, MenuItem, Avatar
 } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider, useTheme } from '@mui/material/styles';
@@ -24,143 +24,188 @@ const getInitials = (name: string = ''): string => {
 };
 
 const Header = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [mobileOpen, setMobileOpen] = useState(false);
-  
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const location = useLocation();
+    const navigate = useNavigate();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const [mobileOpen, setMobileOpen] = useState(false);
 
-  const totalItems = useCartStore(state => state.items.reduce((total, item) => total + item.quantity, 0));
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  const user = useAuthStore((state) => state.user);
-  const isLoading = useAuthStore((state) => state.isLoading);
-  const logout = useAuthStore((state) => state.logout);
+    const totalItems = useCartStore(state => state.items.reduce((total, item) => total + item.quantity, 0));
 
-  const guestNavItems = [
-    { label: 'T-Shirts', path: '/tshirts' },
-    { label: 'Prints', path: '/prints' },
-    { label: 'Personalizar', path: '/customize' },
-  ];
-  
-  let navItems = guestNavItems;
-  if (user) {
-    switch (user.role) {
-      case 'ARTISTA':
-        navItems = [
-          { label: 'Explorar Prints', path: '/prints' },
-          { label: 'Crear Producto', path: '/customize' },
-          { label: 'Mi Panel', path: '/artist/dashboard' },
-        ];
-        break;
-      case 'ADMIN':
-        navItems = [{ label: 'Panel de Admin', path: '/admin/dashboard' }];
-        break;
-      default:
-        navItems = guestNavItems;
-        break;
+    const user = useAuthStore((state) => state.user);
+    const isLoading = useAuthStore((state) => state.isLoading);
+    const logout = useAuthStore((state) => state.logout);
+
+    const guestNavItems = [
+        { label: 'T-Shirts', path: '/tshirts' },
+        { label: 'Prints', path: '/prints' },
+        { label: 'Personalizar', path: '/customize' },
+    ];
+
+    let navItems = guestNavItems;
+    if (user) {
+        switch (user.role) {
+            case 'ARTISTA':
+                navItems = [
+                    { label: 'Explorar Prints', path: '/prints' },
+                    { label: 'Crear Producto', path: '/customize' },
+                    { label: 'Mi Panel', path: '/artist/dashboard' },
+                ];
+                break;
+            case 'ADMIN':
+                navItems = [{ label: 'Panel de Admin', path: '/admin/dashboard' }];
+                break;
+            default:
+                navItems = guestNavItems;
+                break;
+        }
     }
-  }
 
-  const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
-  const handleClose = () => setAnchorEl(null);
-  
-  const handleLogout = async () => {
-    handleClose();
-    await logout();
-    navigate('/');
-  };
+    const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
+    const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+    const handleClose = () => setAnchorEl(null);
 
-  const drawer = (
-    <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
-      <RouterLink to="/">
-          <Box
-              component="img"
-              src={logo}
-              alt="InnovateWear Logo"
-              sx={{ height: 40, my: 2, mx: 'auto' }}
-          />
-      </RouterLink>
-      <List>
-        {navItems.map((item) => (
-          <ListItem key={item.label} disablePadding>
-            <ListItemButton component={RouterLink} to={item.path} sx={{ textAlign: 'center' }}>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
+    const handleLogout = async () => {
+        handleClose();
+        await logout();
+        navigate('/');
+    };
 
-  return (
-    <ThemeProvider theme={headerTheme}>
-      <AppBar position="static" color="primary" elevation={1}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton onClick={handleDrawerToggle} sx={{ color: '#424242', display: { md: 'none' } }}><MenuIcon /></IconButton>
-            
+    const drawer = (
+        <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
             <RouterLink to="/">
                 <Box
                     component="img"
                     src={logo}
-                    alt="InnovateWear Logo"
-                    sx={{ 
-                        height: 60, // <-- AJUSTE: Más grande
-                        ml: 2,      // <-- AJUSTE: Margen a la izquierda para moverlo a la derecha
-                        display: 'block', 
-                        cursor: 'pointer' 
-                    }}
+                    alt="Volver al inicio de InnovateWear" // Alt más descriptivo
+                    sx={{ height: 40, my: 2, mx: 'auto' }}
                 />
             </RouterLink>
-          </Box>
-          
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-            {navItems.map((item) => (
-              <Button key={item.label} component={RouterLink} to={item.path} sx={{ color: location.pathname === item.path ? '#6C5CF0' : '#424242' }}>
-                {item.label}
-              </Button>
-            ))}
-          </Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {user && (user.role === 'CLIENTE') && (
-              <IconButton component={RouterLink} to="/checkout" sx={{ color: '#424242' }}>
-                <Badge badgeContent={totalItems} color="error"><ShoppingCartIcon /></Badge>
-              </IconButton>
-            )}
+            <List>
+                {navItems.map((item) => (
+                    <ListItem key={item.label} disablePadding>
+                        <ListItemButton component={RouterLink} to={item.path} sx={{ textAlign: 'center' }}>
+                            <ListItemText primary={item.label} />
+                        </ListItemButton>
+                    </ListItem>
+                ))}
+            </List>
+        </Box>
+    );
 
-            {isLoading ? <CircularProgress size={24} /> : user ? (
-              <div>
-                <IconButton onClick={handleMenu} sx={{ p: 0 }}>
-                  <Avatar sx={{ bgcolor: '#6C5CF0', width: 32, height: 32, fontSize: '0.875rem' }}>
-                    {getInitials(user.name)}
-                  </Avatar>
-                </IconButton>
-                <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}
-                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+    return (
+        <ThemeProvider theme={headerTheme}>
+            <AppBar position="static" color="primary" elevation={1}>
+                <Toolbar sx={{ justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        {/* **** MEJORA DE ACCESIBILIDAD **** */}
+                        <IconButton
+                            aria-label="abrir menú de navegación"
+                            onClick={handleDrawerToggle}
+                            sx={{ color: '#141414', display: { md: 'none' } }}
+                        >
+                            <MenuIcon />
+                        </IconButton>
+
+                        <RouterLink to="/" aria-label="Volver a la página de inicio">
+                            <Box
+                                component="img"
+                                src={logo}
+                                alt="InnovateWear Logo" // El alt aquí describe la imagen en sí
+                                sx={{
+                                    height: 60,
+                                    ml: 2,
+                                    display: 'block',
+                                    cursor: 'pointer'
+                                }}
+                            />
+                        </RouterLink>
+                    </Box>
+
+                    <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+                        {navItems.map((item) => (
+                            <Button
+                                key={item.label}
+                                component={RouterLink}
+                                to={item.path}
+                                // **** MEJORA DE ACCESIBILIDAD ****
+                                aria-current={location.pathname === item.path ? 'page' : undefined}
+                                aria-label={`Navegar a la sección de ${item.label}`}
+                                sx={{ color: location.pathname === item.path ? '#6C5CF0' : '#141414' }}
+                            >
+                                {item.label}
+                            </Button>
+                        ))}
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {user && (user.role === 'CLIENTE') && (
+                            // **** MEJORA DE ACCESIBILIDAD ****
+                            <IconButton
+                                component={RouterLink}
+                                to="/checkout"
+                                sx={{ color: '#141414' }}
+                                aria-label={`ver carrito de compras, ${totalItems} items`}
+                            >
+                                <Badge badgeContent={totalItems} color="error">
+                                    <ShoppingCartIcon />
+                                </Badge>
+                            </IconButton>
+                        )}
+
+                        {isLoading ? <CircularProgress size={24} aria-label="Cargando datos de usuario" /> : user ? (
+                            <div>
+                                {/* **** MEJORA DE ACCESIBILIDAD **** */}
+                                <IconButton
+                                    onClick={handleMenu}
+                                    sx={{ p: 0 }}
+                                    aria-label="abrir menú de usuario"
+                                    aria-controls={Boolean(anchorEl) ? 'user-menu' : undefined}
+                                    aria-haspopup="true"
+                                    aria-expanded={Boolean(anchorEl)}
+                                >
+                                    <Avatar sx={{ bgcolor: '#6C5CF0', width: 32, height: 32, fontSize: '0.875rem' }}>
+                                        {getInitials(user.name)}
+                                    </Avatar>
+                                </IconButton>
+                                <Menu
+                                    id="user-menu"
+                                    anchorEl={anchorEl}
+                                    open={Boolean(anchorEl)}
+                                    onClose={handleClose}
+                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                >
+                                    <MenuItem component={RouterLink} to={user.getDashboardPath()} onClick={handleClose}>Mi Panel</MenuItem>
+                                    <MenuItem onClick={handleLogout}>Cerrar Sesión</MenuItem>
+                                </Menu>
+                            </div>
+                        ) : (
+                            <Button component={RouterLink} to="/login" variant="contained" size="small">Login</Button>
+                        )}
+                    </Box>
+                </Toolbar>
+            </AppBar>
+
+            <nav>
+                <Drawer
+                    open={mobileOpen}
+                    onClose={handleDrawerToggle}
+                    sx={{ display: { xs: 'block', md: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 } }}
+                    // **** MEJORA DE ACCESIBILIDAD ****
+                    ModalProps={{
+                        keepMounted: true, // Better open performance on mobile.
+                    }}
+                    role="dialog"
+                    aria-modal="true"
                 >
-                  <MenuItem component={RouterLink} to={user.getDashboardPath()} onClick={handleClose}>Mi Panel</MenuItem>
-                  <MenuItem onClick={handleLogout}>Cerrar Sesión</MenuItem>
-                </Menu>
-              </div>
-            ) : (
-              <Button component={RouterLink} to="/login" variant="contained" size="small">Login</Button>
-            )}
-          </Box>
-        </Toolbar>
-      </AppBar>
-      
-      <nav>
-        <Drawer open={mobileOpen} onClose={handleDrawerToggle} sx={{ display: { xs: 'block', md: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 } }}>
-          {drawer}
-        </Drawer>
-      </nav>
-    </ThemeProvider>
-  );
+                    {drawer}
+                </Drawer>
+            </nav>
+        </ThemeProvider>
+    );
 };
 
 export default Header;

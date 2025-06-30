@@ -5,12 +5,21 @@ import type { ReactNode } from 'react';
 interface HorizontalProductScrollerProps {
   title: string;
   children: ReactNode;
+  // **** ACCESIBILIDAD: Se añade la prop opcional para el ID del título ****
+  titleId?: string;
 }
 
-const HorizontalProductScroller = ({ title, children }: HorizontalProductScrollerProps) => {
+const HorizontalProductScroller = ({ title, children, titleId }: HorizontalProductScrollerProps) => {
   return (
     <Box mb={6}>
-      <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
+      <Typography
+        variant="h4"
+        component="h2"
+        gutterBottom
+        sx={{ fontWeight: 'bold' }}
+        // **** ACCESIBILIDAD: Se asigna el ID al título ****
+        id={titleId}
+      >
         {title}
       </Typography>
       <Box
