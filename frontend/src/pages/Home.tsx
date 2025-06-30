@@ -6,14 +6,12 @@ import ProductCard from '../components/ProductCard';
 import PrintCard from '../components/ui/PrintCard';
 import ViewMoreCard from '../components/ViewMoreCard';
 import HorizontalProductScroller from '../components/HorizontalProductScroller';
-// ¡CAMBIO IMPORTANTE! Se importa el api de diseños personalizados.
 import customDesignApi from '../api/customDesignApi';
 import printApi from '../api/designApi';
 import type { TShirt } from '../models/TShirt';
 import type { Print } from '../models/Print';
 
 const Home = () => {
-  // Este estado ahora guardará los diseños públicos que actúan como camisetas
   const [tshirts, setTshirts] = useState<TShirt[]>([]);
   const [prints, setPrints] = useState<Print[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +22,6 @@ const Home = () => {
       try {
         setLoading(true);
         const [tshirtsData, printsData] = await Promise.all([
-          // ¡AQUÍ ESTÁ EL CAMBIO! Se llama a la nueva función
           customDesignApi.getPublicDesigns(), 
           printApi.getAll(),
         ]);
@@ -52,8 +49,10 @@ const Home = () => {
   );
 
   return (
-    <Box>
+    // Se usa <main> para el contenido principal, buena práctica semántica.
+    <Box component="main">
       <HeroCarousel />
+      {/* Contenedor principal para las secciones */}
       <Box sx={{ px: { xs: 2, sm: 4, md: 6 }, py: 4 }}>
         {error && <Alert severity="error" sx={{ mb: 4 }}>{error}</Alert>}
         
@@ -64,27 +63,41 @@ const Home = () => {
           </>
         ) : (
           <>
-            <HorizontalProductScroller title="Camisetas Populares" titleId="popular-tshirts-heading">
-              {tshirts.map((camiseta) => (
-                <Box key={camiseta.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
-                  <ProductCard {...camiseta} />
+            {/* **** LA SOLUCIÓN FINAL ESTÁ AQUÍ **** */}
+            {/* 1. Envuelve el primer scroller en un Box que actúa como <section> */}
+            <Box component="section" aria-labelledby="popular-tshirts-heading">
+              <HorizontalProductScroller
+                title="Camisetas Populares"
+                titleId="popular-tshirts-heading"
+              >
+                {tshirts.map((camiseta) => (
+                  <Box key={camiseta.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                    <ProductCard {...camiseta} />
+                  </Box>
+                ))}
+                <Box sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                  <ViewMoreCard text="Camisetas" link="/tshirts" />
                 </Box>
-              ))}
-              <Box sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
-                <ViewMoreCard text="Camisetas" link="/tshirts" />
-              </Box>
-            </HorizontalProductScroller>
+              </HorizontalProductScroller>
+            </Box>
 
-            <HorizontalProductScroller title="Estampas Populares" titleId="popular-prints-heading">
-              {prints.map((estampa) => (
-                <Box key={estampa.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
-                  <PrintCard {...estampa} />
+            {/* 2. Envuelve el segundo scroller en su propio Box que actúa como <section> */}
+            <Box component="section" aria-labelledby="popular-prints-heading">
+              <HorizontalProductScroller
+                title="Estampas Populares"
+                titleId="popular-prints-heading"
+              >
+                {prints.map((estampa) => (
+                  <Box key={estampa.id} sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                    <PrintCard {...estampa} />
+                  </Box>
+                ))}
+                <Box sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
+                  <ViewMoreCard text="Estampados" link="/prints" />
                 </Box>
-              ))}
-              <Box sx={{ width: {xs: '280px', md: '300px'}, flexShrink: 0 }}>
-                <ViewMoreCard text="Estampados" link="/prints" />
-              </Box>
-            </HorizontalProductScroller>
+              </HorizontalProductScroller>
+            </Box>
+            {/* **** FIN DE LA SOLUCIÓN **** */}
           </>
         )}
       </Box>
